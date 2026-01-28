@@ -1,0 +1,36 @@
+/**
+ * Awesome Group - Editor Styles
+ * These styles are only loaded in the block editor
+ */
+
+/* Visual indicator for blocks with responsive settings */
+.ag-stack-mobile::after,
+.ag-hide-mobile::after,
+.ag-hide-desktop::after {
+	content: "";
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background-color: #007cba;
+	opacity: 0.6;
+	pointer-events: none;
+	z-index: 1;
+}
+
+/* Different indicator colors for different settings */
+.ag-hide-mobile::after {
+	background-color: #d63638;
+}
+
+.ag-hide-desktop::after {
+	background-color: #dba617;
+}
+
+/* When multiple settings are applied */
+.ag-stack-mobile.ag-hide-mobile::after,
+.ag-stack-mobile.ag-hide-desktop::after {
+	background: linear-gradient(135deg, #007cba 50%, #d63638 50%);
+}
