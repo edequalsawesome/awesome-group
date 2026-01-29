@@ -25,6 +25,11 @@ import './editor.css';
 const SUPPORTED_BLOCKS = ['core/group', 'core/row'];
 
 /**
+ * Supported blocks for grid alignment (Grid layout is missing vertical alignment!)
+ */
+const GRID_ALIGNMENT_BLOCKS = ['core/group'];
+
+/**
  * Supported blocks for decorative borders
  */
 const BORDER_SUPPORTED_BLOCKS = ['core/group'];
@@ -58,6 +63,20 @@ function addResponsiveAttributes(settings, name) {
 				awesomeHideOnDesktop: {
 					type: 'boolean',
 					default: false,
+				},
+			},
+		};
+	}
+
+	// Grid vertical alignment (WordPress forgot to add this!)
+	if (GRID_ALIGNMENT_BLOCKS.includes(name)) {
+		settings = {
+			...settings,
+			attributes: {
+				...settings.attributes,
+				awesomeGridVerticalAlignment: {
+					type: 'string',
+					default: '',
 				},
 			},
 		};
@@ -129,8 +148,9 @@ const withResponsiveControls = createHigherOrderComponent((BlockEdit) => {
 
 		const showResponsiveControls = SUPPORTED_BLOCKS.includes(name);
 		const showBorderControls = BORDER_SUPPORTED_BLOCKS.includes(name);
+		const showGridAlignmentControls = GRID_ALIGNMENT_BLOCKS.includes(name);
 
-		if (!showResponsiveControls && !showBorderControls) {
+		if (!showResponsiveControls && !showBorderControls && !showGridAlignmentControls) {
 			return <BlockEdit {...props} />;
 		}
 
@@ -141,6 +161,8 @@ const withResponsiveControls = createHigherOrderComponent((BlockEdit) => {
 			awesomeStackDirection,
 			awesomeHideOnMobile,
 			awesomeHideOnDesktop,
+			// Grid alignment
+			awesomeGridVerticalAlignment,
 			// Border attributes
 			awesomeBorderTop,
 			awesomeBorderRight,
@@ -156,6 +178,9 @@ const withResponsiveControls = createHigherOrderComponent((BlockEdit) => {
 		const layout = attributes.layout || {};
 		const showStackControls =
 			layout.type === 'flex' || layout.type === 'grid';
+
+		// Only show grid alignment for grid layouts
+		const isGridLayout = layout.type === 'grid';
 
 		// Get theme colors for the color palette
 		const colors = useSelect((select) => {
@@ -258,6 +283,49 @@ const withResponsiveControls = createHigherOrderComponent((BlockEdit) => {
 								checked={awesomeHideOnDesktop}
 								onChange={(value) =>
 									setAttributes({ awesomeHideOnDesktop: value })
+								}
+							/>
+						</PanelBody>
+					)}
+
+					{showGridAlignmentControls && isGridLayout && (
+						<PanelBody
+							title={__('Grid Alignment', 'awesome-group')}
+							initialOpen={true}
+						>
+							<p className="components-base-control__help">
+								{__(
+									'WordPress forgot to add vertical alignment for Grid layouts. We got you.',
+									'awesome-group'
+								)}
+							</p>
+							<SelectControl
+								label={__('Vertical alignment', 'awesome-group')}
+								value={awesomeGridVerticalAlignment}
+								options={[
+									{
+										label: __('Default', 'awesome-group'),
+										value: '',
+									},
+									{
+										label: __('Top', 'awesome-group'),
+										value: 'top',
+									},
+									{
+										label: __('Center', 'awesome-group'),
+										value: 'center',
+									},
+									{
+										label: __('Bottom', 'awesome-group'),
+										value: 'bottom',
+									},
+									{
+										label: __('Stretch', 'awesome-group'),
+										value: 'stretch',
+									},
+								]}
+								onChange={(value) =>
+									setAttributes({ awesomeGridVerticalAlignment: value })
 								}
 							/>
 						</PanelBody>

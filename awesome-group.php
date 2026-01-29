@@ -105,6 +105,18 @@ function awesome_group_register_attributes() {
 		}
 	}
 
+	// Grid vertical alignment (WordPress forgot to add this!)
+	$grid_alignment_blocks = array( 'core/group' );
+	foreach ( $grid_alignment_blocks as $block_name ) {
+		$block_type = $registry->get_registered( $block_name );
+		if ( $block_type ) {
+			$block_type->attributes['awesomeGridVerticalAlignment'] = array(
+				'type'    => 'string',
+				'default' => '',
+			);
+		}
+	}
+
 	// Decorative border attributes for Group only
 	$border_blocks = array( 'core/group' );
 	foreach ( $border_blocks as $block_name ) {
@@ -299,6 +311,32 @@ function awesome_group_render_block( $block_content, $block ) {
 	// Hide on desktop
 	if ( ! empty( $attrs['awesomeHideOnDesktop'] ) ) {
 		$classes[] = 'ag-hide-desktop';
+	}
+
+	// Grid vertical alignment (WordPress forgot to add this!)
+	if ( 'core/group' === $block['blockName'] && ! empty( $attrs['awesomeGridVerticalAlignment'] ) ) {
+		$layout = $attrs['layout'] ?? array();
+		if ( isset( $layout['type'] ) && 'grid' === $layout['type'] ) {
+			$alignment = $attrs['awesomeGridVerticalAlignment'];
+			$align_map = array(
+				'top'     => 'start',
+				'center'  => 'center',
+				'bottom'  => 'end',
+				'stretch' => 'stretch',
+			);
+
+			if ( isset( $align_map[ $alignment ] ) ) {
+				if ( empty( $unique_id ) ) {
+					$unique_id = 'ag-' . substr( md5( wp_json_encode( $block ) . wp_rand() ), 0, 8 );
+					$classes[] = $unique_id;
+				}
+				$styles[] = sprintf(
+					'<style>.%s { align-items: %s; }</style>',
+					esc_attr( $unique_id ),
+					esc_attr( $align_map[ $alignment ] )
+				);
+			}
+		}
 	}
 
 	// Decorative borders (Group only)
