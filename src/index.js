@@ -459,13 +459,16 @@ addFilter(
 );
 
 /**
- * Add custom classes in the editor
+ * Add custom classes and styles in the editor
  */
 const withResponsiveClasses = createHigherOrderComponent((BlockListBlock) => {
 	return (props) => {
 		const { name, attributes } = props;
 
-		if (!SUPPORTED_BLOCKS.includes(name)) {
+		const isSupported = SUPPORTED_BLOCKS.includes(name);
+		const isGridAlignmentSupported = GRID_ALIGNMENT_BLOCKS.includes(name);
+
+		if (!isSupported && !isGridAlignmentSupported) {
 			return <BlockListBlock {...props} />;
 		}
 
@@ -473,9 +476,12 @@ const withResponsiveClasses = createHigherOrderComponent((BlockListBlock) => {
 			awesomeStackOnMobile,
 			awesomeHideOnMobile,
 			awesomeHideOnDesktop,
+			awesomeGridVerticalAlignment,
+			layout,
 		} = attributes;
 
 		let className = props.className || '';
+		let wrapperProps = props.wrapperProps || {};
 
 		if (awesomeStackOnMobile) {
 			className += ' ag-stack-mobile';
@@ -487,7 +493,37 @@ const withResponsiveClasses = createHigherOrderComponent((BlockListBlock) => {
 			className += ' ag-hide-desktop';
 		}
 
-		return <BlockListBlock {...props} className={className} />;
+		// Grid vertical alignment in editor
+		if (
+			isGridAlignmentSupported &&
+			layout?.type === 'grid' &&
+			awesomeGridVerticalAlignment
+		) {
+			const alignMap = {
+				top: 'start',
+				center: 'center',
+				bottom: 'end',
+				stretch: 'stretch',
+			};
+			const alignValue = alignMap[awesomeGridVerticalAlignment];
+			if (alignValue) {
+				wrapperProps = {
+					...wrapperProps,
+					style: {
+						...wrapperProps.style,
+						alignItems: alignValue,
+					},
+				};
+			}
+		}
+
+		return (
+			<BlockListBlock
+				{...props}
+				className={className}
+				wrapperProps={wrapperProps}
+			/>
+		);
 	};
 }, 'withResponsiveClasses');
 
