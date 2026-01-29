@@ -160,6 +160,78 @@ function awesome_group_register_attributes() {
 add_action( 'init', 'awesome_group_register_attributes', 20 );
 
 /**
+ * Validate and sanitize a CSS color value.
+ *
+ * @param string $color The color value to validate.
+ * @return string Sanitized color or empty string if invalid.
+ */
+function awesome_group_sanitize_color( $color ) {
+	if ( empty( $color ) ) {
+		return '';
+	}
+
+	// Allow CSS variables
+	if ( preg_match( '/^var\(--[a-zA-Z0-9-_]+\)$/', $color ) ) {
+		return $color;
+	}
+
+	// Allow hex colors (3, 4, 6, or 8 digits)
+	if ( preg_match( '/^#([A-Fa-f0-9]{3,4}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$/', $color ) ) {
+		return $color;
+	}
+
+	// Allow rgb/rgba
+	if ( preg_match( '/^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(,\s*(0|1|0?\.\d+))?\s*\)$/', $color ) ) {
+		return $color;
+	}
+
+	// Allow hsl/hsla
+	if ( preg_match( '/^hsla?\(\s*\d{1,3}\s*,\s*\d{1,3}%\s*,\s*\d{1,3}%\s*(,\s*(0|1|0?\.\d+))?\s*\)$/', $color ) ) {
+		return $color;
+	}
+
+	// Allow named colors (basic validation - alphanumeric only)
+	if ( preg_match( '/^[a-zA-Z]+$/', $color ) ) {
+		return $color;
+	}
+
+	return '';
+}
+
+/**
+ * Validate and sanitize a CSS breakpoint value.
+ *
+ * @param string $breakpoint The breakpoint value to validate.
+ * @return string Sanitized breakpoint or default if invalid.
+ */
+function awesome_group_sanitize_breakpoint( $breakpoint ) {
+	$default = '768px';
+
+	if ( empty( $breakpoint ) ) {
+		return $default;
+	}
+
+	// Must be a number followed by px, em, or rem
+	if ( preg_match( '/^\d+(\.\d+)?(px|em|rem)$/', $breakpoint ) ) {
+		return $breakpoint;
+	}
+
+	return $default;
+}
+
+/**
+ * Clamp a numeric value within bounds.
+ *
+ * @param int $value The value to clamp.
+ * @param int $min   Minimum allowed value.
+ * @param int $max   Maximum allowed value.
+ * @return int Clamped value.
+ */
+function awesome_group_clamp( $value, $min, $max ) {
+	return max( $min, min( $max, intval( $value ) ) );
+}
+
+/**
  * Generate a horizontal squiggle SVG path.
  *
  * @param int $width     Width of the SVG.
@@ -291,8 +363,10 @@ function awesome_group_render_block( $block_content, $block ) {
 		$classes[] = $unique_id;
 		$classes[] = 'ag-stack-mobile';
 
-		$breakpoint = $attrs['awesomeMobileBreakpoint'] ?? '768px';
-		$direction = $attrs['awesomeStackDirection'] ?? 'column';
+		$breakpoint = awesome_group_sanitize_breakpoint( $attrs['awesomeMobileBreakpoint'] ?? '768px' );
+		$direction = in_array( $attrs['awesomeStackDirection'] ?? 'column', array( 'column', 'column-reverse' ), true )
+			? $attrs['awesomeStackDirection']
+			: 'column';
 
 		// Generate inline style for custom breakpoint
 		$styles[] = sprintf(
@@ -317,14 +391,15 @@ function awesome_group_render_block( $block_content, $block ) {
 	if ( 'core/group' === $block['blockName'] && ! empty( $attrs['awesomeGridVerticalAlignment'] ) ) {
 		$layout = $attrs['layout'] ?? array();
 		if ( isset( $layout['type'] ) && 'grid' === $layout['type'] ) {
-			$alignment = $attrs['awesomeGridVerticalAlignment'];
 			$align_map = array(
 				'top'     => 'start',
 				'center'  => 'center',
 				'bottom'  => 'end',
 				'stretch' => 'stretch',
 			);
+			$alignment = $attrs['awesomeGridVerticalAlignment'];
 
+			// Validate alignment value
 			if ( isset( $align_map[ $alignment ] ) ) {
 				if ( empty( $unique_id ) ) {
 					$unique_id = 'ag-' . substr( md5( wp_json_encode( $block ) . wp_rand() ), 0, 8 );
@@ -341,10 +416,15 @@ function awesome_group_render_block( $block_content, $block ) {
 
 	// Decorative borders (Group only)
 	if ( 'core/group' === $block['blockName'] ) {
-		$border_style = $attrs['awesomeBorderStyle'] ?? 'squiggle';
-		$border_color = $attrs['awesomeBorderColor'] ?? '#000000';
-		$border_thickness = intval( $attrs['awesomeBorderThickness'] ?? 3 );
-		$border_amplitude = intval( $attrs['awesomeBorderAmplitude'] ?? 10 );
+		$border_style = in_array( $attrs['awesomeBorderStyle'] ?? 'squiggle', array( 'squiggle', 'zigzag' ), true )
+			? $attrs['awesomeBorderStyle']
+			: 'squiggle';
+		$border_color = awesome_group_sanitize_color( $attrs['awesomeBorderColor'] ?? '' );
+		if ( empty( $border_color ) ) {
+			$border_color = '#000000'; // Safe default
+		}
+		$border_thickness = awesome_group_clamp( $attrs['awesomeBorderThickness'] ?? 3, 1, 10 );
+		$border_amplitude = awesome_group_clamp( $attrs['awesomeBorderAmplitude'] ?? 10, 5, 30 );
 
 		$border_positions = array(
 			'top'    => ! empty( $attrs['awesomeBorderTop'] ),

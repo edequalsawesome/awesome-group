@@ -3,34 +3,66 @@
  * These styles are only loaded in the block editor
  */
 
-/* Visual indicator for blocks with responsive settings */
+/**
+ * Visual indicators for blocks with responsive settings.
+ * Uses both color AND shape for accessibility (not color alone).
+ * - Stack on mobile: Blue circle
+ * - Hide on mobile: Red square
+ * - Hide on desktop: Yellow triangle
+ */
 .ag-stack-mobile::after,
 .ag-hide-mobile::after,
 .ag-hide-desktop::after {
-	content: "";
 	position: absolute;
 	top: 4px;
 	right: 4px;
-	width: 8px;
-	height: 8px;
-	border-radius: 50%;
-	background-color: #007cba;
-	opacity: 0.6;
+	width: 10px;
+	height: 10px;
+	opacity: 0.8;
 	pointer-events: none;
 	z-index: 1;
 }
 
-/* Different indicator colors for different settings */
+/* Stack on mobile: Blue circle */
+.ag-stack-mobile::after {
+	content: "";
+	border-radius: 50%;
+	background-color: #007cba;
+}
+
+/* Hide on mobile: Red square */
 .ag-hide-mobile::after {
+	content: "";
+	border-radius: 0;
 	background-color: #d63638;
 }
 
+/* Hide on desktop: Yellow triangle (using borders) */
 .ag-hide-desktop::after {
-	background-color: #dba617;
+	content: "";
+	width: 0;
+	height: 0;
+	background: transparent;
+	border-left: 5px solid transparent;
+	border-right: 5px solid transparent;
+	border-bottom: 10px solid #dba617;
 }
 
-/* When multiple settings are applied */
-.ag-stack-mobile.ag-hide-mobile::after,
+/* When stack + hide mobile are both applied: Blue circle with red border */
+.ag-stack-mobile.ag-hide-mobile::after {
+	background-color: #007cba;
+	border-radius: 50%;
+	border: 2px solid #d63638;
+	width: 8px;
+	height: 8px;
+}
+
+/* When stack + hide desktop are both applied: Blue circle with yellow border */
 .ag-stack-mobile.ag-hide-desktop::after {
-	background: linear-gradient(135deg, #007cba 50%, #d63638 50%);
+	content: "";
+	background-color: #007cba;
+	border-radius: 50%;
+	border: 2px solid #dba617;
+	width: 8px;
+	height: 8px;
 }

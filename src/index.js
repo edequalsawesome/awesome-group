@@ -237,6 +237,14 @@ const withResponsiveControls = createHigherOrderComponent((BlockEdit) => {
 											<SelectControl
 												label={__('Stack direction', 'awesome-group')}
 												value={awesomeStackDirection}
+												help={
+													awesomeStackDirection === 'column-reverse'
+														? __(
+																'Warning: Reverse order changes visual order but not reading order for screen readers.',
+																'awesome-group'
+														  )
+														: ''
+												}
 												options={[
 													{
 														label: __(
@@ -265,7 +273,7 @@ const withResponsiveControls = createHigherOrderComponent((BlockEdit) => {
 							<ToggleControl
 								label={__('Hide on mobile', 'awesome-group')}
 								help={__(
-									'Hide this block on mobile devices',
+									'Completely hides this block on mobile. Note: Hidden content is also removed from screen readers.',
 									'awesome-group'
 								)}
 								checked={awesomeHideOnMobile}
@@ -277,7 +285,7 @@ const withResponsiveControls = createHigherOrderComponent((BlockEdit) => {
 							<ToggleControl
 								label={__('Hide on desktop', 'awesome-group')}
 								help={__(
-									'Hide this block on desktop devices',
+									'Completely hides this block on desktop. Note: Hidden content is also removed from screen readers.',
 									'awesome-group'
 								)}
 								checked={awesomeHideOnDesktop}
