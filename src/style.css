@@ -179,3 +179,88 @@
 		transition: none !important;
 	}
 }
+
+/* ==========================================================================
+   Decorative Borders (Squiggle/Zigzag)
+   ========================================================================== */
+
+/**
+ * Container for decorative borders
+ * Positioned relative to the Group block
+ */
+.ag-has-borders {
+	position: relative;
+}
+
+.ag-borders-container {
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	pointer-events: none;
+	overflow: hidden;
+	z-index: 1;
+}
+
+/* Ensure content stays above borders */
+.ag-has-borders > *:not(.ag-borders-container) {
+	position: relative;
+	z-index: 2;
+}
+
+/**
+ * Individual border SVGs
+ */
+.ag-border {
+	position: absolute;
+	overflow: visible;
+}
+
+/* Horizontal borders (top/bottom) */
+.ag-border-top,
+.ag-border-bottom {
+	left: 0;
+	right: 0;
+	width: 100%;
+	height: 30px; /* Adjusted based on amplitude */
+}
+
+.ag-border-top {
+	top: 0;
+	transform: translateY(-50%);
+}
+
+.ag-border-bottom {
+	bottom: 0;
+	transform: translateY(50%);
+}
+
+/* Vertical borders (left/right) - rotated horizontal paths */
+/* TODO: These use CSS rotation until we implement proper vertical SVG paths */
+.ag-border-left,
+.ag-border-right {
+	top: 0;
+	bottom: 0;
+	width: 30px;
+	height: 100%;
+}
+
+.ag-border-left {
+	left: 0;
+	transform: translateX(-50%) rotate(90deg);
+	transform-origin: center center;
+}
+
+.ag-border-right {
+	right: 0;
+	transform: translateX(50%) rotate(90deg);
+	transform-origin: center center;
+}
+
+/**
+ * NOTE: Vertical squiggles are currently achieved by rotating horizontal SVGs.
+ * For a future Awesome Quote Block plugin, we may want to implement true
+ * vertical SVG path generation for better control over the wave direction
+ * and seamless tiling at corners.
+ */

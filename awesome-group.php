@@ -75,12 +75,12 @@ add_action( 'enqueue_block_editor_assets', 'awesome_group_enqueue_frontend_style
  * Register custom attributes for the Group block.
  */
 function awesome_group_register_attributes() {
-	$blocks_to_extend = array( 'core/group', 'core/row' );
+	$registry = WP_Block_Type_Registry::get_instance();
 
-	foreach ( $blocks_to_extend as $block_name ) {
-		$registry = WP_Block_Type_Registry::get_instance();
+	// Responsive layout attributes for Group and Row
+	$responsive_blocks = array( 'core/group', 'core/row' );
+	foreach ( $responsive_blocks as $block_name ) {
 		$block_type = $registry->get_registered( $block_name );
-
 		if ( $block_type ) {
 			$block_type->attributes['awesomeStackOnMobile'] = array(
 				'type'    => 'boolean',
@@ -104,11 +104,161 @@ function awesome_group_register_attributes() {
 			);
 		}
 	}
+
+	// Decorative border attributes for Group only
+	$border_blocks = array( 'core/group' );
+	foreach ( $border_blocks as $block_name ) {
+		$block_type = $registry->get_registered( $block_name );
+		if ( $block_type ) {
+			$block_type->attributes['awesomeBorderTop'] = array(
+				'type'    => 'boolean',
+				'default' => false,
+			);
+			$block_type->attributes['awesomeBorderRight'] = array(
+				'type'    => 'boolean',
+				'default' => false,
+			);
+			$block_type->attributes['awesomeBorderBottom'] = array(
+				'type'    => 'boolean',
+				'default' => false,
+			);
+			$block_type->attributes['awesomeBorderLeft'] = array(
+				'type'    => 'boolean',
+				'default' => false,
+			);
+			$block_type->attributes['awesomeBorderStyle'] = array(
+				'type'    => 'string',
+				'default' => 'squiggle',
+			);
+			$block_type->attributes['awesomeBorderColor'] = array(
+				'type'    => 'string',
+				'default' => '',
+			);
+			$block_type->attributes['awesomeBorderThickness'] = array(
+				'type'    => 'number',
+				'default' => 3,
+			);
+			$block_type->attributes['awesomeBorderAmplitude'] = array(
+				'type'    => 'number',
+				'default' => 10,
+			);
+		}
+	}
 }
 add_action( 'init', 'awesome_group_register_attributes', 20 );
 
 /**
- * Filter the Group block output to add responsive classes and inline styles.
+ * Generate a horizontal squiggle SVG path.
+ *
+ * @param int $width     Width of the SVG.
+ * @param int $height    Height of the SVG.
+ * @param int $amplitude Wave amplitude.
+ * @return string SVG path d attribute.
+ */
+function awesome_group_generate_squiggle_path( $width, $height, $amplitude = 10 ) {
+	$mid_y = $height / 2;
+	$wavelength = 40; // Distance between wave peaks
+	$path = "M0,{$mid_y}";
+
+	for ( $x = 0; $x < $width; $x += $wavelength ) {
+		$cp1_x = $x + ( $wavelength / 4 );
+		$cp1_y = $mid_y - $amplitude;
+		$cp2_x = $x + ( $wavelength / 4 );
+		$cp2_y = $mid_y - $amplitude;
+		$end_x = $x + ( $wavelength / 2 );
+		$end_y = $mid_y;
+
+		$path .= " C{$cp1_x},{$cp1_y} {$cp2_x},{$cp2_y} {$end_x},{$end_y}";
+
+		$cp3_x = $x + ( 3 * $wavelength / 4 );
+		$cp3_y = $mid_y + $amplitude;
+		$cp4_x = $x + ( 3 * $wavelength / 4 );
+		$cp4_y = $mid_y + $amplitude;
+		$end2_x = $x + $wavelength;
+		$end2_y = $mid_y;
+
+		$path .= " C{$cp3_x},{$cp3_y} {$cp4_x},{$cp4_y} {$end2_x},{$end2_y}";
+	}
+
+	return $path;
+}
+
+/**
+ * Generate a horizontal zigzag SVG path.
+ *
+ * @param int $width     Width of the SVG.
+ * @param int $height    Height of the SVG.
+ * @param int $amplitude Zigzag amplitude.
+ * @return string SVG path d attribute.
+ */
+function awesome_group_generate_zigzag_path( $width, $height, $amplitude = 10 ) {
+	$mid_y = $height / 2;
+	$wavelength = 20; // Distance between zigzag points
+	$path = "M0,{$mid_y}";
+	$up = true;
+
+	for ( $x = $wavelength; $x <= $width; $x += $wavelength ) {
+		$y = $up ? ( $mid_y - $amplitude ) : ( $mid_y + $amplitude );
+		$path .= " L{$x},{$y}";
+		$up = ! $up;
+	}
+
+	return $path;
+}
+
+/**
+ * Generate a decorative border SVG element.
+ *
+ * @param string $position  Border position: top, right, bottom, left.
+ * @param string $style     Border style: squiggle or zigzag.
+ * @param string $color     Border color.
+ * @param int    $thickness Stroke width.
+ * @param int    $amplitude Wave/zigzag amplitude.
+ * @return string SVG HTML.
+ */
+function awesome_group_generate_border_svg( $position, $style, $color, $thickness, $amplitude ) {
+	$is_horizontal = in_array( $position, array( 'top', 'bottom' ), true );
+
+	// SVG dimensions - horizontal borders are wide, vertical are tall
+	// Using viewBox for scalability
+	if ( $is_horizontal ) {
+		$width = 2000;
+		$height = ( $amplitude * 2 ) + $thickness + 4;
+		$viewbox = "0 0 {$width} {$height}";
+		$preserve = 'xMidYMid slice';
+	} else {
+		// TODO: Vertical borders - will need rotated/different path generation
+		// For now, we'll use a rotated horizontal path via CSS transform
+		$width = 2000;
+		$height = ( $amplitude * 2 ) + $thickness + 4;
+		$viewbox = "0 0 {$width} {$height}";
+		$preserve = 'xMidYMid slice';
+	}
+
+	// Generate path based on style
+	if ( 'zigzag' === $style ) {
+		$path = awesome_group_generate_zigzag_path( $width, $height, $amplitude );
+	} else {
+		$path = awesome_group_generate_squiggle_path( $width, $height, $amplitude );
+	}
+
+	$svg = sprintf(
+		'<svg class="ag-border ag-border-%s" viewBox="%s" preserveAspectRatio="%s" aria-hidden="true">
+			<path d="%s" fill="none" stroke="%s" stroke-width="%d" stroke-linecap="round" stroke-linejoin="round"/>
+		</svg>',
+		esc_attr( $position ),
+		esc_attr( $viewbox ),
+		esc_attr( $preserve ),
+		esc_attr( $path ),
+		esc_attr( $color ),
+		intval( $thickness )
+	);
+
+	return $svg;
+}
+
+/**
+ * Filter the Group block output to add responsive classes and decorative borders.
  */
 function awesome_group_render_block( $block_content, $block ) {
 	$supported_blocks = array( 'core/group', 'core/row' );
@@ -120,6 +270,7 @@ function awesome_group_render_block( $block_content, $block ) {
 	$attrs = $block['attrs'] ?? array();
 	$classes = array();
 	$styles = array();
+	$borders = array();
 	$unique_id = '';
 
 	// Stack on mobile
@@ -150,17 +301,60 @@ function awesome_group_render_block( $block_content, $block ) {
 		$classes[] = 'ag-hide-desktop';
 	}
 
-	if ( empty( $classes ) ) {
+	// Decorative borders (Group only)
+	if ( 'core/group' === $block['blockName'] ) {
+		$border_style = $attrs['awesomeBorderStyle'] ?? 'squiggle';
+		$border_color = $attrs['awesomeBorderColor'] ?? '#000000';
+		$border_thickness = intval( $attrs['awesomeBorderThickness'] ?? 3 );
+		$border_amplitude = intval( $attrs['awesomeBorderAmplitude'] ?? 10 );
+
+		$border_positions = array(
+			'top'    => ! empty( $attrs['awesomeBorderTop'] ),
+			'right'  => ! empty( $attrs['awesomeBorderRight'] ),
+			'bottom' => ! empty( $attrs['awesomeBorderBottom'] ),
+			'left'   => ! empty( $attrs['awesomeBorderLeft'] ),
+		);
+
+		$has_borders = array_filter( $border_positions );
+
+		if ( ! empty( $has_borders ) ) {
+			$classes[] = 'ag-has-borders';
+
+			foreach ( $border_positions as $position => $enabled ) {
+				if ( $enabled ) {
+					$borders[] = awesome_group_generate_border_svg(
+						$position,
+						$border_style,
+						$border_color,
+						$border_thickness,
+						$border_amplitude
+					);
+				}
+			}
+		}
+	}
+
+	// If nothing to add, return original content
+	if ( empty( $classes ) && empty( $borders ) ) {
 		return $block_content;
 	}
 
 	// Add classes to the block
-	$processor = new WP_HTML_Tag_Processor( $block_content );
-	if ( $processor->next_tag() ) {
-		foreach ( $classes as $class ) {
-			$processor->add_class( $class );
+	if ( ! empty( $classes ) ) {
+		$processor = new WP_HTML_Tag_Processor( $block_content );
+		if ( $processor->next_tag() ) {
+			foreach ( $classes as $class ) {
+				$processor->add_class( $class );
+			}
+			$block_content = $processor->get_updated_html();
 		}
-		$block_content = $processor->get_updated_html();
+	}
+
+	// Add borders inside the block (after opening tag)
+	if ( ! empty( $borders ) ) {
+		$border_html = '<div class="ag-borders-container">' . implode( '', $borders ) . '</div>';
+		// Insert borders after the first tag
+		$block_content = preg_replace( '/^(<[^>]+>)/', '$1' . $border_html, $block_content, 1 );
 	}
 
 	// Prepend inline styles if any
