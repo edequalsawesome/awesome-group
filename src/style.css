@@ -196,10 +196,11 @@
 	position: absolute;
 	top: 0;
 	left: 0;
-	right: 0;
 	bottom: 0;
+	width: 100%;
+	max-width: none !important; /* Override layout constraints */
 	pointer-events: none;
-	overflow: hidden;
+	overflow: visible; /* Changed from hidden to allow wavy edges to extend beyond */
 	z-index: 1;
 }
 
@@ -221,46 +222,39 @@
 .ag-border-top,
 .ag-border-bottom {
 	left: 0;
-	right: 0;
 	width: 100%;
 	height: 30px; /* Adjusted based on amplitude */
 }
 
 .ag-border-top {
 	top: 0;
-	transform: translateY(-50%);
+	/* Filled shape extends upward from the block edge */
+	transform: translateY(-100%);
 }
 
 .ag-border-bottom {
 	bottom: 0;
-	transform: translateY(50%);
+	/* Flip and extend downward from the block edge */
+	transform: translateY(100%) scaleY(-1);
 }
 
-/* Vertical borders (left/right) - rotated horizontal paths */
-/* TODO: These use CSS rotation until we implement proper vertical SVG paths */
+/* Vertical borders (left/right) - native vertical SVG paths */
 .ag-border-left,
 .ag-border-right {
-	top: 0;
-	bottom: 0;
-	width: 30px;
+	width: 30px; /* Will match SVG viewBox width */
 	height: 100%;
+	position: absolute;
+	top: 0;
 }
 
 .ag-border-left {
 	left: 0;
-	transform: translateX(-50%) rotate(90deg);
-	transform-origin: center center;
+	/* Filled shape extends leftward from the block edge */
+	transform: translateX(-100%);
 }
 
 .ag-border-right {
 	right: 0;
-	transform: translateX(50%) rotate(90deg);
-	transform-origin: center center;
+	/* Flip horizontally and extend rightward from the block edge */
+	transform: translateX(100%) scaleX(-1);
 }
-
-/**
- * NOTE: Vertical squiggles are currently achieved by rotating horizontal SVGs.
- * For a future Awesome Quote Block plugin, we may want to implement true
- * vertical SVG path generation for better control over the wave direction
- * and seamless tiling at corners.
- */

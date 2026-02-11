@@ -89,6 +89,12 @@ Yes. The plugin respects prefers-reduced-motion, uses proper ARIA labels, and wa
 * Moved grid vertical alignment controls from sidebar to block toolbar
 * Added README.md for GitHub
 * Added readme.txt for WordPress.org
+* Improved decorative borders with smooth wave generation using Bezier curves
+* Fixed border width to match block width for alignwide and alignfull layouts
+* Added proper margin spacing around bordered blocks
+* Implemented native vertical SVG paths for left/right borders
+* Adjusted vertical wave spacing to match horizontal wave density
+* Added side margins when left/right borders are present
 
 = 1.0.0 =
 * Initial release
@@ -103,7 +109,7 @@ Yes. The plugin respects prefers-reduced-motion, uses proper ARIA labels, and wa
 == Upgrade Notice ==
 
 = 2026.02.10 =
-Grid vertical alignment now accessible in block toolbar for easier access.
+Grid vertical alignment now accessible in block toolbar. Decorative borders significantly improved with smoother waves, better positioning, and working left/right borders.
 
 = 1.0.0 =
 Initial release of Awesome Group.
