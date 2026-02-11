@@ -425,6 +425,134 @@ function awesome_group_generate_zigzag_path_vertical( $width, $height, $amplitud
 }
 
 /**
+ * Generate complete border set HTML with edges and corners.
+ * Uses inline SVGs for edges and file-based SVGs for corners.
+ *
+ * @param array  $border_positions Which borders are enabled (top, right, bottom, left).
+ * @param string $style            Border style: squiggle or zigzag.
+ * @param string $color            Border color.
+ * @return string HTML for borders container with edges and corners.
+ */
+function awesome_group_generate_border_set( $border_positions, $style, $color ) {
+	$html = '';
+
+	// Determine which corners we need based on enabled borders
+	$has_top = ! empty( $border_positions['top'] );
+	$has_right = ! empty( $border_positions['right'] );
+	$has_bottom = ! empty( $border_positions['bottom'] );
+	$has_left = ! empty( $border_positions['left'] );
+
+	// Generate repeating pattern dimensions
+	$pattern_width = 120; // Width of repeating unit
+	$edge_height = 30;    // Height of border edges
+
+	// Top edge - generate simple wave pattern
+	if ( $has_top ) {
+		$html .= sprintf(
+			'<svg class="ag-border-edge ag-border-top" viewBox="0 0 %d %d" preserveAspectRatio="none" aria-hidden="true">
+				<path d="M0,%d L0,15 Q15,5 30,15 T60,15 T90,15 T120,15 L120,%d Z" fill="%s"/>
+			</svg>',
+			$pattern_width,
+			$edge_height,
+			$edge_height,
+			$edge_height,
+			esc_attr( $color )
+		);
+	}
+
+	// Right edge - rotated wave pattern
+	if ( $has_right ) {
+		$html .= sprintf(
+			'<svg class="ag-border-edge ag-border-right" viewBox="0 0 %d %d" preserveAspectRatio="none" aria-hidden="true">
+				<path d="M%d,0 L15,0 Q5,15 15,30 T15,60 T15,90 T15,120 L%d,120 Z" fill="%s"/>
+			</svg>',
+			$edge_height,
+			$pattern_width,
+			$edge_height,
+			$edge_height,
+			esc_attr( $color )
+		);
+	}
+
+	// Bottom edge - same as top (CSS flips it)
+	if ( $has_bottom ) {
+		$html .= sprintf(
+			'<svg class="ag-border-edge ag-border-bottom" viewBox="0 0 %d %d" preserveAspectRatio="none" aria-hidden="true">
+				<path d="M0,%d L0,15 Q15,5 30,15 T60,15 T90,15 T120,15 L120,%d Z" fill="%s"/>
+			</svg>',
+			$pattern_width,
+			$edge_height,
+			$edge_height,
+			$edge_height,
+			esc_attr( $color )
+		);
+	}
+
+	// Left edge - same as right (CSS flips it)
+	if ( $has_left ) {
+		$html .= sprintf(
+			'<svg class="ag-border-edge ag-border-left" viewBox="0 0 %d %d" preserveAspectRatio="none" aria-hidden="true">
+				<path d="M%d,0 L15,0 Q5,15 15,30 T15,60 T15,90 T15,120 L%d,120 Z" fill="%s"/>
+			</svg>',
+			$edge_height,
+			$pattern_width,
+			$edge_height,
+			$edge_height,
+			esc_attr( $color )
+		);
+	}
+
+	// Load and inline corner SVGs
+	$corner_size = 30;
+
+	// Top-left corner
+	if ( $has_top && $has_left ) {
+		$corner_path = plugin_dir_path( __FILE__ ) . "assets/borders/{$style}/corner-tl.svg";
+		if ( file_exists( $corner_path ) ) {
+			$svg_content = file_get_contents( $corner_path );
+			$svg_content = str_replace( 'fill="currentColor"', 'fill="' . esc_attr( $color ) . '"', $svg_content );
+			$svg_content = str_replace( 'fill="#fff"', 'fill="' . esc_attr( $color ) . '"', $svg_content );
+			$html .= '<div class="ag-border-corner ag-corner-tl" aria-hidden="true">' . $svg_content . '</div>';
+		}
+	}
+
+	// Top-right corner
+	if ( $has_top && $has_right ) {
+		$corner_path = plugin_dir_path( __FILE__ ) . "assets/borders/{$style}/corner-tr.svg";
+		if ( file_exists( $corner_path ) ) {
+			$svg_content = file_get_contents( $corner_path );
+			$svg_content = str_replace( 'fill="currentColor"', 'fill="' . esc_attr( $color ) . '"', $svg_content );
+			$svg_content = str_replace( 'fill="#fff"', 'fill="' . esc_attr( $color ) . '"', $svg_content );
+			$html .= '<div class="ag-border-corner ag-corner-tr" aria-hidden="true">' . $svg_content . '</div>';
+		}
+	}
+
+	// Bottom-right corner
+	if ( $has_bottom && $has_right ) {
+		$corner_path = plugin_dir_path( __FILE__ ) . "assets/borders/{$style}/corner-br.svg";
+		if ( file_exists( $corner_path ) ) {
+			$svg_content = file_get_contents( $corner_path );
+			$svg_content = str_replace( 'fill="currentColor"', 'fill="' . esc_attr( $color ) . '"', $svg_content );
+			$svg_content = str_replace( 'fill="#fff"', 'fill="' . esc_attr( $color ) . '"', $svg_content );
+			$html .= '<div class="ag-border-corner ag-corner-br" aria-hidden="true">' . $svg_content . '</div>';
+		}
+	}
+
+	// Bottom-left corner
+	if ( $has_bottom && $has_left ) {
+		$corner_path = plugin_dir_path( __FILE__ ) . "assets/borders/{$style}/corner-bl.svg";
+		if ( file_exists( $corner_path ) ) {
+			$svg_content = file_get_contents( $corner_path );
+			$svg_content = str_replace( 'fill="currentColor"', 'fill="' . esc_attr( $color ) . '"', $svg_content );
+			$svg_content = str_replace( 'fill="#fff"', 'fill="' . esc_attr( $color ) . '"', $svg_content );
+			$html .= '<div class="ag-border-corner ag-corner-bl" aria-hidden="true">' . $svg_content . '</div>';
+		}
+	}
+
+	return $html;
+}
+
+/**
  * Generate a decorative border SVG element.
  *
  * @param string $position  Border position: top, right, bottom, left.
@@ -558,9 +686,10 @@ function awesome_group_render_block( $block_content, $block ) {
 
 	// Decorative borders (Group only)
 	if ( 'core/group' === $block['blockName'] ) {
-		$border_style = in_array( $attrs['awesomeBorderStyle'] ?? 'squiggle', array( 'squiggle', 'zigzag' ), true )
-			? $attrs['awesomeBorderStyle']
-			: 'squiggle';
+		$border_style = $attrs['awesomeBorderStyle'] ?? 'squiggle';
+		if ( ! in_array( $border_style, array( 'squiggle', 'zigzag' ), true ) ) {
+			$border_style = 'squiggle';
+		}
 
 		// Get the Group block's background color to use for the border fill
 		$background_color = awesome_group_get_background_color( $attrs );
@@ -590,17 +719,12 @@ function awesome_group_render_block( $block_content, $block ) {
 		if ( ! empty( $has_borders ) ) {
 			$classes[] = 'ag-has-borders';
 
-			foreach ( $border_positions as $position => $enabled ) {
-				if ( $enabled ) {
-					$borders[] = awesome_group_generate_border_svg(
-						$position,
-						$border_style,
-						$background_color,
-						$border_thickness,
-						$border_amplitude
-					);
-				}
-			}
+			// Generate complete border set with edges and corners
+			$borders = awesome_group_generate_border_set(
+				$border_positions,
+				$border_style,
+				$background_color
+			);
 		}
 	}
 
@@ -650,7 +774,7 @@ function awesome_group_render_block( $block_content, $block ) {
 
 	// Add borders inside the block (after opening tag)
 	if ( ! empty( $borders ) ) {
-		$border_html = '<div class="ag-borders-container">' . implode( '', $borders ) . '</div>';
+		$border_html = '<div class="ag-borders-container">' . $borders . '</div>';
 		// Insert borders after the first non-comment tag (the actual block opening tag)
 		$block_content = preg_replace( '/(<!--.*?-->)*\s*(<div[^>]*>)/', '$1$2' . $border_html, $block_content, 1 );
 	}
