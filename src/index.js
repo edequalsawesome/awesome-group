@@ -4,7 +4,7 @@
 
 import { addFilter } from '@wordpress/hooks';
 import { createHigherOrderComponent } from '@wordpress/compose';
-import { InspectorControls } from '@wordpress/block-editor';
+import { InspectorControls, BlockControls, BlockVerticalAlignmentControl } from '@wordpress/block-editor';
 import {
 	PanelBody,
 	ToggleControl,
@@ -197,6 +197,14 @@ const withResponsiveControls = createHigherOrderComponent((BlockEdit) => {
 		return (
 			<>
 				<BlockEdit {...props} />
+				{showGridAlignmentControls && isGridLayout && (
+					<BlockControls group="block">
+						<BlockVerticalAlignmentControl
+							value={ awesomeGridVerticalAlignment }
+							onChange={ ( alignment ) => setAttributes({ awesomeGridVerticalAlignment: alignment }) }
+						/>
+					</BlockControls>
+				)}
 				<InspectorControls>
 					{showResponsiveControls && (
 						<PanelBody
@@ -291,49 +299,6 @@ const withResponsiveControls = createHigherOrderComponent((BlockEdit) => {
 								checked={awesomeHideOnDesktop}
 								onChange={(value) =>
 									setAttributes({ awesomeHideOnDesktop: value })
-								}
-							/>
-						</PanelBody>
-					)}
-
-					{showGridAlignmentControls && isGridLayout && (
-						<PanelBody
-							title={__('Grid Alignment', 'awesome-group')}
-							initialOpen={true}
-						>
-							<p className="components-base-control__help">
-								{__(
-									'WordPress forgot to add vertical alignment for Grid layouts. We got you.',
-									'awesome-group'
-								)}
-							</p>
-							<SelectControl
-								label={__('Vertical alignment', 'awesome-group')}
-								value={awesomeGridVerticalAlignment}
-								options={[
-									{
-										label: __('Default', 'awesome-group'),
-										value: '',
-									},
-									{
-										label: __('Top', 'awesome-group'),
-										value: 'top',
-									},
-									{
-										label: __('Center', 'awesome-group'),
-										value: 'center',
-									},
-									{
-										label: __('Bottom', 'awesome-group'),
-										value: 'bottom',
-									},
-									{
-										label: __('Stretch', 'awesome-group'),
-										value: 'stretch',
-									},
-								]}
-								onChange={(value) =>
-									setAttributes({ awesomeGridVerticalAlignment: value })
 								}
 							/>
 						</PanelBody>
