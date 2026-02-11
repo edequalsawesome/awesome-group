@@ -1,6 +1,6 @@
 {
 	"name": "awesome-group",
-	"version": "1.0.0",
+	"version": "2026.02.10",
 	"description": "WordPress plugin that extends the Group block with responsive layout controls",
 	"files": [
 		"build",

@@ -4,7 +4,7 @@ Tags: blocks, group, responsive, layout, borders
 Requires at least: 6.4
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 2026.02.10
 License: GPL-3.0
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -85,6 +85,11 @@ Yes. The plugin respects prefers-reduced-motion, uses proper ARIA labels, and wa
 
 == Changelog ==
 
+= 2026.02.10 =
+* Moved grid vertical alignment controls from sidebar to block toolbar
+* Added README.md for GitHub
+* Added readme.txt for WordPress.org
+
 = 1.0.0 =
 * Initial release
 * Responsive layout controls for Group and Row blocks
@@ -96,6 +101,9 @@ Yes. The plugin respects prefers-reduced-motion, uses proper ARIA labels, and wa
 * Full accessibility support
 
 == Upgrade Notice ==
+
+= 2026.02.10 =
+Grid vertical alignment now accessible in block toolbar for easier access.
 
 = 1.0.0 =
 Initial release of Awesome Group.
