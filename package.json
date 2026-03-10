@@ -1,6 +1,6 @@
 {
 	"name": "awesome-group",
-	"version": "2026.02.10",
+	"version": "2026.03.10",
 	"description": "WordPress plugin that extends the Group block with responsive layout controls",
 	"files": [
 		"build",
@@ -18,15 +18,13 @@
 		"lint:js": "wp-scripts lint-js",
 		"plugin-zip": "wp-scripts plugin-zip"
 	},
-	"dependencies": {
+	"devDependencies": {
 		"@wordpress/block-editor": "^11.0.0",
 		"@wordpress/blocks": "^12.0.0",
 		"@wordpress/components": "^25.0.0",
 		"@wordpress/compose": "^6.0.0",
 		"@wordpress/hooks": "^3.0.0",
-		"@wordpress/i18n": "^4.0.0"
-	},
-	"devDependencies": {
+		"@wordpress/i18n": "^4.0.0",
 		"@wordpress/scripts": "^30.17.0"
 	}
 }

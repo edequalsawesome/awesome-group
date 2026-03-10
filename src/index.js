@@ -6,6 +6,7 @@ import { addFilter } from '@wordpress/hooks';
 import { createHigherOrderComponent } from '@wordpress/compose';
 import { InspectorControls, BlockControls, BlockVerticalAlignmentControl } from '@wordpress/block-editor';
 import {
+	BaseControl,
 	PanelBody,
 	ToggleControl,
 	SelectControl,
@@ -248,7 +249,7 @@ const withResponsiveControls = createHigherOrderComponent((BlockEdit) => {
 												help={
 													awesomeStackDirection === 'column-reverse'
 														? __(
-																'Warning: Reverse order changes visual order but not reading order for screen readers.',
+																'Warning: Reverse order changes visual order but not keyboard focus order or screen reader reading order.',
 																'awesome-group'
 														  )
 														: ''
@@ -378,23 +379,20 @@ const withResponsiveControls = createHigherOrderComponent((BlockEdit) => {
 										}
 									/>
 
-									<div style={{ marginBottom: '16px' }}>
-										<p
-											style={{
-												marginBottom: '8px',
-												fontWeight: '500',
-											}}
-										>
-											{__('Border color', 'awesome-group')}
-										</p>
+									<BaseControl
+										label={__('Border color', 'awesome-group')}
+										id="awesome-group-border-color"
+									>
 										<ColorPalette
 											colors={colors}
 											value={awesomeBorderColor}
 											onChange={(value) =>
-												setAttributes({ awesomeBorderColor: value })
+												setAttributes({
+													awesomeBorderColor: value || '',
+												})
 											}
 										/>
-									</div>
+									</BaseControl>
 
 									<RangeControl
 										label={__('Thickness', 'awesome-group')}

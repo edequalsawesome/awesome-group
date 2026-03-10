@@ -211,86 +211,50 @@
 }
 
 /**
- * Border edges (inline SVGs)
+ * Individual border SVGs
  */
-.ag-border-edge {
+.ag-border {
 	position: absolute;
-	pointer-events: none;
 	overflow: visible;
 }
 
-/* Top edge */
+/* Horizontal borders (top/bottom) */
+.ag-border-top,
+.ag-border-bottom {
+	left: 0;
+	width: 100%;
+	height: 30px; /* Adjusted based on amplitude */
+}
+
 .ag-border-top {
 	top: 0;
-	left: 30px; /* Leave space for corners */
-	right: 30px;
-	height: 30px;
+	/* Filled shape extends upward from the block edge */
 	transform: translateY(-100%);
 }
 
-/* Right edge */
-.ag-border-right {
-	right: 0;
-	top: 30px; /* Leave space for corners */
-	bottom: 30px;
-	width: 30px;
-	transform: translateX(100%);
-}
-
-/* Bottom edge */
 .ag-border-bottom {
 	bottom: 0;
-	left: 30px; /* Leave space for corners */
-	right: 30px;
-	height: 30px;
+	/* Flip and extend downward from the block edge */
 	transform: translateY(100%) scaleY(-1);
 }
 
-/* Left edge */
+/* Vertical borders (left/right) - native vertical SVG paths */
+.ag-border-left,
+.ag-border-right {
+	width: 30px; /* Will match SVG viewBox width */
+	height: 100%;
+	position: absolute;
+	top: 0;
+}
+
 .ag-border-left {
 	left: 0;
-	top: 30px; /* Leave space for corners */
-	bottom: 30px;
-	width: 30px;
-	transform: translateX(-100%) scaleX(-1);
+	/* Filled shape extends leftward from the block edge */
+	transform: translateX(-100%);
 }
 
-/**
- * Border corners (inline SVGs)
- */
-.ag-border-corner {
-	position: absolute;
-	width: 30px;
-	height: 30px;
-	pointer-events: none;
-}
-
-.ag-border-corner svg {
-	display: block;
-	width: 100%;
-	height: 100%;
-}
-
-.ag-corner-tl {
-	top: 0;
-	left: 0;
-	transform: translate(-100%, -100%);
-}
-
-.ag-corner-tr {
-	top: 0;
+.ag-border-right {
 	right: 0;
-	transform: translate(100%, -100%);
-}
-
-.ag-corner-br {
-	bottom: 0;
-	right: 0;
-	transform: translate(100%, 100%);
-}
-
-.ag-corner-bl {
-	bottom: 0;
-	left: 0;
-	transform: translate(-100%, 100%);
+	/* Flip horizontally and extend rightward from the block edge */
+	transform: translateX(100%) scaleX(-1);
 }

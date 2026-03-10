@@ -4,7 +4,7 @@ Tags: blocks, group, responsive, layout, borders
 Requires at least: 6.4
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2026.02.10
+Stable tag: 2026.03.10
 License: GPL-3.0
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -84,6 +84,20 @@ Yes. The plugin respects prefers-reduced-motion, uses proper ARIA labels, and wa
 5. Visual indicators in the editor
 
 == Changelog ==
+
+= 2026.03.10 =
+* Moved @wordpress/* packages to devDependencies (build-only, not bundled)
+* Replaced md5+json_encode ID generation with wp_unique_id() for better performance
+* Added in-memory SVG path cache to avoid regenerating identical paths per request
+* Fixed margin ordering so border spacing takes precedence over existing inline styles
+* Added file existence check for frontend CSS before enqueueing
+* Cached asset file data to avoid triple-loading in editor context
+* Wrapped ColorPalette in BaseControl for proper screen reader label association
+* Guarded ColorPalette onChange for undefined values on color clear
+* Updated column-reverse warning to mention keyboard focus order
+* Added visual indicator for hide-on-both-mobile-and-desktop edge case
+* Tightened HTML comment regex in border injection to prevent backtracking
+* Increased editor indicator size from 10px to 12px for better visibility
 
 = 2026.02.10 =
 * Moved grid vertical alignment controls from sidebar to block toolbar
