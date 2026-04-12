@@ -4,7 +4,7 @@ Tags: blocks, group, responsive, layout, borders
 Requires at least: 6.4
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2026.03.10
+Stable tag: 2026.04.11
 License: GPL-3.0
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -84,6 +84,10 @@ Yes. The plugin respects prefers-reduced-motion, uses proper ARIA labels, and wa
 5. Visual indicators in the editor
 
 == Changelog ==
+
+= 2026.04.11 =
+* Removed decorative borders feature (attributes, SVG generators, render logic) to simplify the plugin
+* Fixed PHP warnings for `awesomeStackDirection` and `awesomeBorderStyle` caused by missing null coalescing fallbacks on ternary true branches
 
 = 2026.03.10 =
 * Moved @wordpress/* packages to devDependencies (build-only, not bundled)
