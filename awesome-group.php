@@ -531,8 +531,9 @@ function awesome_group_render_block( $block_content, $block ) {
 		$classes[] = 'ag-stack-mobile';
 
 		$breakpoint = awesome_group_sanitize_breakpoint( $attrs['awesomeMobileBreakpoint'] ?? '768px' );
-		$direction = in_array( $attrs['awesomeStackDirection'] ?? 'column', array( 'column', 'column-reverse' ), true )
-			? $attrs['awesomeStackDirection']
+		$raw_direction = $attrs['awesomeStackDirection'] ?? 'column';
+		$direction = in_array( $raw_direction, array( 'column', 'column-reverse' ), true )
+			? $raw_direction
 			: 'column';
 
 		// Generate inline style for custom breakpoint
@@ -583,8 +584,9 @@ function awesome_group_render_block( $block_content, $block ) {
 
 	// Decorative borders (Group only)
 	if ( 'core/group' === $block['blockName'] ) {
-		$border_style = in_array( $attrs['awesomeBorderStyle'] ?? 'squiggle', array( 'squiggle', 'zigzag' ), true )
-			? $attrs['awesomeBorderStyle']
+		$raw_border_style = $attrs['awesomeBorderStyle'] ?? 'squiggle';
+		$border_style = in_array( $raw_border_style, array( 'squiggle', 'zigzag' ), true )
+			? $raw_border_style
 			: 'squiggle';
 
 		// Get the Group block's background color to use for the border fill
