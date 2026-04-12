@@ -4,7 +4,7 @@
  * Description:       Extends the Group block with responsive layout controls - stack on mobile, custom breakpoints, and more.
  * Requires at least: 6.4
  * Requires PHP:      7.4
- * Version:           2026.03.10
+ * Version:           2026.04.11
  * Author:            eD! Thomas
  * Author URI:        https://edequalsaweso.me
  * License:           GPL-3.0
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'AWESOME_GROUP_VERSION', '2026.03.10' );
+define( 'AWESOME_GROUP_VERSION', '2026.04.11' );
 define( 'AWESOME_GROUP_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AWESOME_GROUP_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
