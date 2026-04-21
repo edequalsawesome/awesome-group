@@ -1,6 +1,6 @@
 # Awesome Group
 
-Extends the WordPress Group and Row blocks with responsive layout controls, grid vertical alignment, and decorative 90s-style borders.
+Extends the WordPress Group and Row blocks with responsive layout controls and grid vertical alignment.
 
 ## Features
 
@@ -14,13 +14,6 @@ Extends the WordPress Group and Row blocks with responsive layout controls, grid
 WordPress forgot to add vertical alignment controls for Grid layouts. We got you.
 - Top, Center, Bottom, Stretch alignment options
 - Works seamlessly with WordPress core grid layouts
-
-### Decorative Borders
-Add 90s-style squiggle or zigzag borders to your Group blocks.
-- Choose which sides to add borders (top, right, bottom, left)
-- Two styles: Squiggle or Zigzag
-- Customizable color, thickness, and amplitude (waviness)
-- Pure SVG implementation for crisp rendering at any size
 
 ## Installation
 
@@ -44,7 +37,7 @@ npm run build
 
 1. Add a Group or Row block to your content
 2. Select the block and open the block settings sidebar
-3. Find the "Responsive Layout", "Grid Alignment", or "Decorative Borders" panels
+3. Find the "Responsive Layout" or "Grid Alignment" panels
 4. Enable the features you want and customize the settings
 
 ### Visual Indicators in the Editor
@@ -98,11 +91,7 @@ awesome-group/
 
 ## Roadmap
 
-- [ ] True vertical SVG paths for left/right borders (currently using rotated horizontal)
-- [ ] Individual border colors per side
-- [ ] Corner handling options for borders
 - [ ] Container query support for custom breakpoints
-- [ ] Additional border styles (dots, dashes, etc.)
 
 ## License
 

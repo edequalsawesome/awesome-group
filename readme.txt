@@ -1,6 +1,6 @@
 === Awesome Group ===
 Contributors: edequalsawesome
-Tags: blocks, group, responsive, layout, borders
+Tags: blocks, group, responsive, layout
 Requires at least: 6.4
 Tested up to: 6.7
 Requires PHP: 7.4
@@ -8,11 +8,11 @@ Stable tag: 2026.04.11
 License: GPL-3.0
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
-Extends the Group and Row blocks with responsive layout controls, grid vertical alignment, and decorative 90s-style borders.
+Extends the Group and Row blocks with responsive layout controls and grid vertical alignment.
 
 == Description ==
 
-Awesome Group supercharges WordPress core Group and Row blocks with powerful responsive controls and fun decorative options.
+Awesome Group supercharges WordPress core Group and Row blocks with powerful responsive controls.
 
 = Responsive Layout Controls =
 
@@ -28,16 +28,6 @@ WordPress forgot to add vertical alignment controls for Grid layouts. We added t
 * Top, Center, Bottom, and Stretch alignment options
 * Works seamlessly with WordPress core grid layouts
 * No additional markup or complexity
-
-= Decorative Borders =
-
-Add fun 90s-style squiggle or zigzag borders to your Group blocks:
-
-* Choose which sides to add borders (top, right, bottom, left)
-* Two styles: Squiggle or Zigzag
-* Customizable color, thickness, and amplitude
-* Pure SVG implementation for crisp rendering at any size
-* Fully responsive and accessible
 
 = Developer Friendly =
 
@@ -67,10 +57,6 @@ No. The plugin only loads minimal CSS and uses native browser features. The Java
 
 Absolutely! This plugin extends core blocks and plays nicely with other block plugins.
 
-= Do the borders work on mobile? =
-
-Yes! The SVG borders are fully responsive and scale beautifully on all screen sizes.
-
 = Are the responsive controls accessible? =
 
 Yes. The plugin respects prefers-reduced-motion, uses proper ARIA labels, and warns users that hidden content is removed from screen readers.
@@ -79,9 +65,7 @@ Yes. The plugin respects prefers-reduced-motion, uses proper ARIA labels, and wa
 
 1. Responsive Layout controls panel
 2. Grid Alignment controls (the feature WordPress forgot!)
-3. Decorative Borders panel with style options
-4. Example of squiggle borders on a Group block
-5. Visual indicators in the editor
+3. Visual indicators in the editor
 
 == Changelog ==
 
