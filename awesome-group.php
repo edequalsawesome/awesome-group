@@ -4,7 +4,7 @@
  * Description:       Extends the Group block with responsive layout controls - stack on mobile, custom breakpoints, and more.
  * Requires at least: 6.4
  * Requires PHP:      7.4
- * Version:           2026.04.11
+ * Version:           2026.07.001
  * Author:            eD! Thomas
  * Author URI:        https://edequalsaweso.me
  * License:           GPL-3.0
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'AWESOME_GROUP_VERSION', '2026.04.11' );
+define( 'AWESOME_GROUP_VERSION', '2026.07.001' );
 define( 'AWESOME_GROUP_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AWESOME_GROUP_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
@@ -88,50 +88,44 @@ add_action( 'enqueue_block_editor_assets', 'awesome_group_enqueue_frontend_style
 
 /**
  * Register custom attributes for the Group block.
+ *
+ * Note: core's Row and Stack are layout *variations* of core/group, not
+ * separate registered block types, so core/group alone covers them all.
  */
 function awesome_group_register_attributes() {
-	$registry = WP_Block_Type_Registry::get_instance();
+	$block_type = WP_Block_Type_Registry::get_instance()->get_registered( 'core/group' );
 
-	// Responsive layout attributes for Group and Row
-	$responsive_blocks = array( 'core/group', 'core/row' );
-	foreach ( $responsive_blocks as $block_name ) {
-		$block_type = $registry->get_registered( $block_name );
-		if ( $block_type ) {
-			$block_type->attributes['awesomeStackOnMobile'] = array(
-				'type'    => 'boolean',
-				'default' => false,
-			);
-			$block_type->attributes['awesomeMobileBreakpoint'] = array(
-				'type'    => 'string',
-				'default' => '768px',
-			);
-			$block_type->attributes['awesomeStackDirection'] = array(
-				'type'    => 'string',
-				'default' => 'column',
-			);
-			$block_type->attributes['awesomeHideOnMobile'] = array(
-				'type'    => 'boolean',
-				'default' => false,
-			);
-			$block_type->attributes['awesomeHideOnDesktop'] = array(
-				'type'    => 'boolean',
-				'default' => false,
-			);
-		}
+	if ( ! $block_type ) {
+		return;
 	}
+
+	// Responsive layout attributes
+	$block_type->attributes['awesomeStackOnMobile'] = array(
+		'type'    => 'boolean',
+		'default' => false,
+	);
+	$block_type->attributes['awesomeMobileBreakpoint'] = array(
+		'type'    => 'string',
+		'default' => '768px',
+	);
+	$block_type->attributes['awesomeStackDirection'] = array(
+		'type'    => 'string',
+		'default' => 'column',
+	);
+	$block_type->attributes['awesomeHideOnMobile'] = array(
+		'type'    => 'boolean',
+		'default' => false,
+	);
+	$block_type->attributes['awesomeHideOnDesktop'] = array(
+		'type'    => 'boolean',
+		'default' => false,
+	);
 
 	// Grid vertical alignment (WordPress forgot to add this!)
-	$grid_alignment_blocks = array( 'core/group' );
-	foreach ( $grid_alignment_blocks as $block_name ) {
-		$block_type = $registry->get_registered( $block_name );
-		if ( $block_type ) {
-			$block_type->attributes['awesomeGridVerticalAlignment'] = array(
-				'type'    => 'string',
-				'default' => '',
-			);
-		}
-	}
-
+	$block_type->attributes['awesomeGridVerticalAlignment'] = array(
+		'type'    => 'string',
+		'default' => '',
+	);
 }
 add_action( 'init', 'awesome_group_register_attributes', 20 );
 
@@ -145,12 +139,16 @@ add_action( 'init', 'awesome_group_register_attributes', 20 );
 function awesome_group_sanitize_breakpoint( $breakpoint ) {
 	$default = '768px';
 
-	if ( empty( $breakpoint ) ) {
+	// Block attribute JSON is not type-enforced server-side: a crafted block
+	// comment can supply an array/object here, which would fatal in preg_match.
+	if ( ! is_string( $breakpoint ) || '' === $breakpoint ) {
 		return $default;
 	}
 
-	// Must be a number followed by px, em, or rem
-	if ( preg_match( '/^\d+(\.\d+)?(px|em|rem)$/', $breakpoint ) ) {
+	$breakpoint = strtolower( trim( $breakpoint ) );
+
+	// Must be a number followed by px, em, or rem ('D' so '$' can't match before a trailing newline)
+	if ( preg_match( '/^\d+(\.\d+)?(px|em|rem)$/D', $breakpoint ) ) {
 		return $breakpoint;
 	}
 
@@ -162,9 +160,9 @@ function awesome_group_sanitize_breakpoint( $breakpoint ) {
  * Filter the Group block output to add responsive classes and grid alignment.
  */
 function awesome_group_render_block( $block_content, $block ) {
-	$supported_blocks = array( 'core/group', 'core/row' );
-
-	if ( ! in_array( $block['blockName'], $supported_blocks, true ) ) {
+	// Row/Stack are core/group variations, so this single check covers them.
+	// Plain string compare: this filter runs for every block on the page.
+	if ( 'core/group' !== $block['blockName'] ) {
 		return $block_content;
 	}
 
@@ -184,7 +182,12 @@ function awesome_group_render_block( $block_content, $block ) {
 			? ( $attrs['awesomeStackDirection'] ?? 'column' )
 			: 'column';
 
-		// Generate inline style for custom breakpoint
+		// Generate inline style for custom breakpoint.
+		// CSS-injection safety here depends entirely on the upstream
+		// validation ($breakpoint regex, $direction whitelist) — esc_attr()
+		// is defense-in-depth only and does NOT make arbitrary text safe for
+		// a <style> context. Any new value added to this sprintf must be
+		// equally strictly whitelisted first.
 		$styles[] = sprintf(
 			'<style>.%s { --ag-breakpoint: %s; --ag-stack-direction: %s; }</style>',
 			esc_attr( $unique_id ),
@@ -204,7 +207,7 @@ function awesome_group_render_block( $block_content, $block ) {
 	}
 
 	// Grid vertical alignment (WordPress forgot to add this!)
-	if ( 'core/group' === $block['blockName'] && ! empty( $attrs['awesomeGridVerticalAlignment'] ) ) {
+	if ( ! empty( $attrs['awesomeGridVerticalAlignment'] ) ) {
 		$layout = $attrs['layout'] ?? array();
 		if ( isset( $layout['type'] ) && 'grid' === $layout['type'] ) {
 			$align_map = array(
@@ -215,12 +218,13 @@ function awesome_group_render_block( $block_content, $block ) {
 			);
 			$alignment = $attrs['awesomeGridVerticalAlignment'];
 
-			// Validate alignment value
-			if ( isset( $align_map[ $alignment ] ) ) {
+			// Validate alignment value (is_string: block JSON is not type-enforced server-side)
+			if ( is_string( $alignment ) && isset( $align_map[ $alignment ] ) ) {
 				if ( empty( $unique_id ) ) {
 					$unique_id = 'ag-' . wp_unique_id();
 					$classes[] = $unique_id;
 				}
+				// Safe: only values from the closed $align_map above reach this sprintf.
 				$styles[] = sprintf(
 					'<style>.%s { align-items: %s; }</style>',
 					esc_attr( $unique_id ),
