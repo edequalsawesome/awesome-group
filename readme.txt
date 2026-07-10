@@ -4,7 +4,7 @@ Tags: blocks, group, responsive, layout
 Requires at least: 6.4
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 2026.04.11
+Stable tag: 2026.07.001
 License: GPL-3.0
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -68,6 +68,16 @@ Yes. The plugin respects prefers-reduced-motion, uses proper ARIA labels, and wa
 3. Visual indicators in the editor
 
 == Changelog ==
+
+= 2026.07.001 =
+* Fixed potential fatal error when block markup supplies a non-string breakpoint value (hardened breakpoint and alignment validation)
+* Fixed editor indicator dots losing their positioning anchor after the decorative borders removal
+* Added the missing Stretch option to the grid vertical alignment toolbar control
+* Removed dead code left from the decorative borders removal (unused CSS and SVG assets)
+* Removed non-functional custom-breakpoint fallback CSS that could never match rendered markup
+* Removed dead core/row handling (Row and Stack are core/group layout variations, not separate block types)
+* Documented that CSS output safety relies on strict value validation
+* Cleaned up class name concatenation in the editor preview
 
 = 2026.04.11 =
 * Removed decorative borders feature (attributes, SVG generators, render logic) to simplify the plugin

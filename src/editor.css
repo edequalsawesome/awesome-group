@@ -11,6 +11,15 @@
  * - Hide on desktop: Yellow triangle
  * - Hide on both: Red/yellow split diamond (likely a user error)
  */
+
+/* Positioning context for the ::after indicators — previously supplied
+   incidentally by the removed decorative-borders CSS (.ag-has-borders). */
+.ag-stack-mobile,
+.ag-hide-mobile,
+.ag-hide-desktop {
+	position: relative;
+}
+
 .ag-stack-mobile::after,
 .ag-hide-mobile::after,
 .ag-hide-desktop::after {
@@ -68,7 +77,8 @@
 	height: 8px;
 }
 
-/* When hide on BOTH mobile AND desktop: Red/yellow diamond — block is hidden everywhere */
+/* When hide on BOTH mobile AND desktop: Red/yellow diamond —
+   block is hidden everywhere */
 .ag-hide-mobile.ag-hide-desktop::after {
 	content: "";
 	width: 12px;
