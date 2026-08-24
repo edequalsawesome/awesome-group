@@ -1,7 +1,7 @@
 {
 	"name": "awesome-group",
 	"version": "2026.08.001",
-	"description": "WordPress plugin that adds the vertical alignment control core's Grid layout is missing on Group blocks",
+	"description": "WordPress plugin that fills two gaps core leaves on Group blocks: vertical alignment on Grid layouts, and reversed order at any of core's viewports",
 	"files": [
 		"build",
 		"src",
@@ -13,7 +13,6 @@
 		"build:production": "NODE_ENV=production wp-scripts build",
 		"start": "wp-scripts start",
 		"format": "wp-scripts format",
-		"lint:css": "wp-scripts lint-style",
 		"lint:js": "wp-scripts lint-js",
 		"plugin-zip": "wp-scripts plugin-zip"
 	},
