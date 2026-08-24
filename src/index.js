@@ -1,5 +1,5 @@
 /**
- * Awesome Group - the vertical alignment control core's Grid layout is missing
+ * Awesome Group - fills the gaps core leaves on Group blocks
  *
  * Almost everything else this plugin used to do is now core. WordPress 7.0
  * shipped per-viewport block visibility (block-supports/block-visibility.php)
@@ -10,16 +10,19 @@
  * with `display: none !important` inside a media query — parity, not an
  * improvement: markup stays in the source, out of the accessibility tree.
  *
- * One exception, stated honestly: reversed stack direction has NO core
- * equivalent — core's `orientation` is horizontal or vertical only. It was
- * dropped anyway, because it only ever modified stack-on-mobile (now core's
- * job) and because reversing visual order without reversing focus and reading
- * order is an accessibility trap. Theme CSS can do it if it is really wanted.
+ * Two gaps remain, and they are what this plugin is now for:
  *
- * What core still does not do is vertical alignment on a Grid layout. Core's
- * layout support applies verticalAlignment to flex only — the grid branch emits
- * grid-template-columns and grid-template-rows and never align-items. That gap
- * is the whole of this plugin now.
+ * 1. Vertical alignment on a Grid layout. Core's layout support applies
+ *    verticalAlignment to flex only — the grid branch emits
+ *    grid-template-columns and grid-template-rows and never align-items.
+ * 2. Reversed order at the mobile viewport. Core's flex `orientation` accepts
+ *    horizontal or vertical only, with no reversed option anywhere in its
+ *    layout support, so a viewport override cannot express it.
+ *
+ * Both use core's own primitives rather than a parallel system: the reverse
+ * rule is scoped to the mobile media query core derives from theme.json
+ * settings.viewport, and both are emitted through the style engine into the
+ * same block-supports store core's layout styles use.
  */
 
 import { addFilter } from '@wordpress/hooks';
@@ -27,13 +30,37 @@ import { createHigherOrderComponent } from '@wordpress/compose';
 import {
 	BlockControls,
 	BlockVerticalAlignmentControl,
+	InspectorControls,
 } from '@wordpress/block-editor';
+import { PanelBody, ToggleControl } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 
 /**
  * Row and Stack are layout variations of core/group, not separate block types,
  * so core/group alone covers Group, Row, and Stack.
  */
 const SUPPORTED_BLOCKS = [ 'core/group' ];
+
+/**
+ * Is this block a column at the mobile viewport?
+ *
+ * Mirrors awesome_group_is_column_at_mobile() in PHP. Core writes viewport
+ * layout overrides to style['@mobile'].layout, and emits no flex-direction at
+ * all for horizontal flex — so reversing a still-horizontal row needs
+ * row-reverse, and reversing a stacked one needs column-reverse.
+ *
+ * @param {Object} attributes Block attributes.
+ * @return {boolean} True when the block is a column at that width.
+ */
+function isColumnAtMobile( attributes ) {
+	const override = attributes?.style?.[ '@mobile' ]?.layout;
+
+	if ( override && 'orientation' in override ) {
+		return override.orientation === 'vertical';
+	}
+
+	return ( attributes?.layout?.orientation ?? 'horizontal' ) === 'vertical';
+}
 
 /** Editor alignment keyword to its CSS align-items value. */
 const ALIGN_MAP = {
@@ -63,6 +90,10 @@ function addGridAlignmentAttribute( settings, name ) {
 				type: 'string',
 				default: '',
 			},
+			awesomeReverseOnMobile: {
+				type: 'boolean',
+				default: false,
+			},
 		},
 	};
 }
@@ -76,40 +107,77 @@ addFilter(
 /**
  * Add the toolbar control, for grid layouts only.
  */
-const withGridAlignmentControl = createHigherOrderComponent( ( BlockEdit ) => {
+const withGroupGapControls = createHigherOrderComponent( ( BlockEdit ) => {
 	return ( props ) => {
 		const { name, attributes, setAttributes } = props;
 
-		if (
-			! SUPPORTED_BLOCKS.includes( name ) ||
-			attributes.layout?.type !== 'grid'
-		) {
+		if ( ! SUPPORTED_BLOCKS.includes( name ) ) {
+			return <BlockEdit { ...props } />;
+		}
+
+		const layoutType = attributes.layout?.type;
+		const isGrid = layoutType === 'grid';
+		const isFlex = layoutType === 'flex';
+
+		if ( ! isGrid && ! isFlex ) {
 			return <BlockEdit { ...props } />;
 		}
 
 		return (
 			<>
 				<BlockEdit { ...props } />
-				<BlockControls group="block">
-					<BlockVerticalAlignmentControl
-						value={ attributes.awesomeGridVerticalAlignment }
-						onChange={ ( alignment ) =>
-							setAttributes( {
-								awesomeGridVerticalAlignment: alignment,
-							} )
-						}
-						controls={ [ 'top', 'center', 'bottom', 'stretch' ] }
-					/>
-				</BlockControls>
+				{ isGrid && (
+					<BlockControls group="block">
+						<BlockVerticalAlignmentControl
+							value={ attributes.awesomeGridVerticalAlignment }
+							onChange={ ( alignment ) =>
+								setAttributes( {
+									awesomeGridVerticalAlignment: alignment,
+								} )
+							}
+							controls={ [
+								'top',
+								'center',
+								'bottom',
+								'stretch',
+							] }
+						/>
+					</BlockControls>
+				) }
+				{ isFlex && (
+					<InspectorControls>
+						<PanelBody
+							title={ __( 'Responsive Order', 'awesome-group' ) }
+							initialOpen={ false }
+						>
+							<ToggleControl
+								label={ __(
+									'Reverse order on mobile',
+									'awesome-group'
+								) }
+								help={ __(
+									'Warning: this reverses visual order only. Keyboard focus order and screen reader reading order stay as written, so the two will disagree. Reorder the blocks themselves if the sequence genuinely matters.',
+									'awesome-group'
+								) }
+								checked={ !! attributes.awesomeReverseOnMobile }
+								onChange={ ( value ) =>
+									setAttributes( {
+										awesomeReverseOnMobile: value,
+									} )
+								}
+							/>
+						</PanelBody>
+					</InspectorControls>
+				) }
 			</>
 		);
 	};
-}, 'withGridAlignmentControl' );
+}, 'withGroupGapControls' );
 
 addFilter(
 	'editor.BlockEdit',
-	'awesome-group/with-grid-alignment-control',
-	withGridAlignmentControl
+	'awesome-group/with-group-controls',
+	withGroupGapControls
 );
 
 /**
@@ -119,27 +187,53 @@ const withGridAlignmentStyle = createHigherOrderComponent(
 	( BlockListBlock ) => {
 		return ( props ) => {
 			const { name, attributes } = props;
-			const alignValue =
-				ALIGN_MAP[ attributes.awesomeGridVerticalAlignment ];
 
-			if (
-				! SUPPORTED_BLOCKS.includes( name ) ||
-				attributes.layout?.type !== 'grid' ||
-				! alignValue
-			) {
+			if ( ! SUPPORTED_BLOCKS.includes( name ) ) {
 				return <BlockListBlock { ...props } />;
 			}
 
-			const wrapperProps = {
-				...( props.wrapperProps || {} ),
-				style: {
-					...( props.wrapperProps?.style || {} ),
-					alignItems: alignValue,
-				},
-			};
+			const layoutType = attributes.layout?.type;
+			const alignValue =
+				layoutType === 'grid'
+					? ALIGN_MAP[ attributes.awesomeGridVerticalAlignment ]
+					: undefined;
+			const reverse =
+				layoutType === 'flex' && !! attributes.awesomeReverseOnMobile;
+
+			if ( ! alignValue && ! reverse ) {
+				return <BlockListBlock { ...props } />;
+			}
+
+			let wrapperProps = props.wrapperProps || {};
+
+			if ( alignValue ) {
+				wrapperProps = {
+					...wrapperProps,
+					style: { ...wrapperProps.style, alignItems: alignValue },
+				};
+			}
+
+			// A media query cannot live in an inline style, so the reverse
+			// preview rides a class the plugin's canvas CSS targets. Which
+			// class depends on the axis the block has at that width, decided
+			// by the same rule the front end uses.
+			let reverseClass = false;
+			if ( reverse ) {
+				reverseClass = isColumnAtMobile( attributes )
+					? 'ag-reverse-column'
+					: 'ag-reverse-row';
+			}
+
+			const className = [ props.className, reverseClass ]
+				.filter( Boolean )
+				.join( ' ' );
 
 			return (
-				<BlockListBlock { ...props } wrapperProps={ wrapperProps } />
+				<BlockListBlock
+					{ ...props }
+					className={ className }
+					wrapperProps={ wrapperProps }
+				/>
 			);
 		};
 	},
@@ -148,6 +242,6 @@ const withGridAlignmentStyle = createHigherOrderComponent(
 
 addFilter(
 	'editor.BlockListBlock',
-	'awesome-group/with-grid-alignment-style',
+	'awesome-group/with-group-styles',
 	withGridAlignmentStyle
 );

@@ -8,17 +8,30 @@ Stable tag: 2026.08.001
 License: GPL-3.0
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
-Adds the vertical alignment control that core's Grid layout is missing on Group blocks.
+Fills two gaps core leaves on Group blocks: vertical alignment on Grid layouts, and reversed order at the mobile viewport.
 
 == Description ==
 
-Core's Grid layout has no vertical alignment control. Its layout support applies `verticalAlignment` to flex layouts only — the grid branch emits `grid-template-columns` and `grid-template-rows` and never `align-items`. This plugin adds it.
+Almost everything this plugin used to do is now core. Two gaps are left, and they are what it is for.
 
 = Grid Vertical Alignment =
 
+Core's layout support applies `verticalAlignment` to flex layouts only — the grid branch emits `grid-template-columns` and `grid-template-rows` and never `align-items`.
+
 * Top, Center, Bottom, and Stretch, in the block toolbar
 * Grid layouts only; flex layouts already have this in core
-* Applied with one inline rule, no extra markup and no stylesheet
+
+= Reverse Order on Mobile =
+
+Core's flex `orientation` accepts `horizontal` or `vertical` only. There is no reversed option anywhere in its layout support, so a viewport override cannot express it.
+
+* A single toggle on flex Group blocks, under Responsive Order
+* Scoped to the mobile media query core derives from `theme.json` `settings.viewport` — this plugin defines no breakpoint of its own
+* Composes with core's stacking rather than replacing it: core flips the block to a column at your chosen viewport, this reverses the direction
+* Works on its own too. A block core has not stacked is still a row at that width, so it gets `row-reverse` — the row reverses, it does not silently become a column
+* Emitted through core's style engine under this plugin's own context, with a deliberately doubled selector so it wins on specificity rather than on print order — no `!important` needed
+
+Reversing visual order does **not** reverse keyboard focus order or screen reader reading order, so the two will disagree. The control says so. If the sequence genuinely matters, reorder the blocks instead.
 
 = Everything else this plugin used to do is now core =
 
@@ -26,7 +39,7 @@ WordPress 7.0 shipped per-viewport block visibility and WordPress 7.1 added conf
 
 * **Hide on mobile / desktop** is now block visibility. Select a block, open the Settings panel, and set its per-viewport visibility. Core has three breakpoints where this plugin had one, and its breakpoints are configurable. It hides with `display: none !important` inside a media query — the same technique this plugin used. The markup stays in the page source but `display: none` removes it from the accessibility tree, so it is not announced. That is parity with the removed code rather than an improvement. Core does additionally set `fetchpriority="auto"` on images inside hidden blocks, which this plugin never did.
 * **Stack on mobile** is now a viewport layout override. Switch the editor to the mobile viewport and change the layout there; core stores an override for that breakpoint.
-* **Stack direction** has no core equivalent, and was removed rather than kept. Core's `orientation` accepts `horizontal` or `vertical` only — there is no reversed option anywhere in its layout support. This setting existed solely to modify stack-on-mobile, which is now core's job, and reversing visual order without reversing keyboard focus and screen reader order is a documented accessibility trap. If you need it, `flex-direction: column-reverse` in your theme's CSS does the job with the same caveat.
+* **Stack direction** has no core equivalent, so it was kept — rebuilt as the Reverse Order on Mobile toggle described above. The old implementation was welded to this plugin's own stacking CSS and could not survive its removal, so the control was rewritten to layer on top of core's stacking instead.
 * **Custom breakpoints** now live in `theme.json` under `settings.viewport`, so they are set once for the whole site instead of per block. The defaults are `@mobile` at 480px, `@tablet` between 480px and 782px, and `@desktop` above 782px.
 * **Grid stacking** usually needs no setting at all: a grid using a *minimum column width* collapses to one column on its own, because core emits `repeat(auto-fill, minmax(min(WIDTH, 100%), 1fr))`. A grid using an explicit *column count* does not — core emits `repeat(N, minmax(0, 1fr))` and holds N columns at every width, so those need a mobile viewport override setting the column count to 1.
 
@@ -59,21 +72,22 @@ Absolutely! This plugin extends core blocks and plays nicely with other block pl
 
 = What happened to the responsive controls? =
 
-WordPress 7.0 and 7.1 shipped them. See the Description above for where each one now lives, and note that reversed stack direction is the one thing core does not offer. Keeping a second, weaker implementation alongside core's would only cause the two to fight, so they were removed rather than maintained.
+WordPress 7.0 and 7.1 shipped most of them. See the Description above for where each now lives. The exception is reversed order, which core still does not offer — that one stayed in the plugin, rebuilt to sit on top of core's stacking. Keeping a second, weaker implementation alongside core's would only cause the two to fight, so they were removed rather than maintained.
 
 = I upgraded and my blocks stopped stacking. What do I do? =
 
-Set the behaviour again with core's controls — per-viewport visibility for hiding, and viewport layout overrides for stacking. The old attributes are inert but still present in your post content, and are dropped permanently the next time you save that post in the editor. See the Upgrade Notice for details.
+Set the behaviour again with core's controls — per-viewport visibility for hiding, and viewport layout overrides for stacking. If you had the old Stack direction set to reverse, that one is still here: turn on Responsive Order → Reverse order on mobile. The old setting does not carry over, so you will need to set it again. The old attributes are inert but still present in your post content, and are dropped permanently the next time you save that post in the editor. See the Upgrade Notice for details.
 
 == Screenshots ==
 
 1. Grid Alignment controls in the block toolbar
+2. Reverse Order on Mobile toggle in the block inspector
 
 == Changelog ==
 
 = 2026.08.001 =
 * Removed: stack on mobile, custom breakpoints, and hide on mobile/desktop. Core ships all of these — per-viewport block visibility in 7.0, configurable viewport breakpoints in 7.1 — and core's versions are better by being site-wide in theme.json rather than per block, with three configurable breakpoints instead of one hardcoded 768px. Core hides using `display: none !important` inside a media query, which is the same technique the removed code used, so that part is parity rather than an improvement
-* Removed: stack direction. This one has no core equivalent — core's `orientation` accepts only `horizontal` or `vertical`. It was dropped rather than kept because it existed solely to modify stack-on-mobile, and because reversing visual order without reversing keyboard focus and screen reader order is an accessibility trap. Theme CSS can do it with `flex-direction: column-reverse` if it is genuinely wanted
+* Kept, rebuilt: stack direction, now the Reverse Order on Mobile toggle. Core has no reversed orientation, so removing this would have lost a capability with nowhere to go. The old version could not simply be carried over — it drove a `--ag-stack-direction` custom property consumed only by this plugin's own stacking CSS, which is gone — so it was rewritten to scope `flex-direction: column-reverse` to the mobile media query core derives from theme.json, layering on core's stacking instead of replacing it. The accessibility warning about visual order diverging from focus and reading order is preserved on the control
 * Removed: the front-end stylesheet, which existed only for the features above. The remaining feature emits a single inline rule
 * Fixed: the custom breakpoint control never worked. It stored a value and rendered `--ag-breakpoint`, but media queries cannot read custom properties, so stacking always triggered at a hardcoded 768px no matter what was set. Rather than build per-block generated media queries to fix it, the control is gone and theme.json `settings.viewport` does the job properly
 * Changed: minimum WordPress version raised to 7.1, since the migration path depends on theme.json `settings.viewport`, which is 7.1. Raising the floor also stops this update reaching sites that could not perform the migration
@@ -131,7 +145,7 @@ Set the behaviour again with core's controls — per-viewport visibility for hid
 == Upgrade Notice ==
 
 = 2026.08.001 =
-Breaking change. Stack on mobile, custom breakpoints, and hide on mobile/desktop have been removed because WordPress now does all of them, better. Stack direction (reverse) has no core equivalent and was dropped as an accessibility trap rather than migrated. Blocks using those settings will stop behaving responsively until you set them again with core's controls: per-viewport visibility for hiding, viewport layout overrides for stacking, and theme.json `settings.viewport` for breakpoints. The old attributes stay in your post content and are inert — but only until that post is next saved in the block editor, at which point they are dropped for good. Gutenberg serialises only currently-registered attributes, and these are no longer registered. If you want a record of which blocks used them, take it before editing those posts. Grid vertical alignment is unchanged and still works. Requires WordPress 7.1 or later.
+Breaking change. Stack on mobile, custom breakpoints, and hide on mobile/desktop have been removed because WordPress now does all of them, better. Stack direction survives as the Reverse Order on Mobile toggle — core has no reversed orientation, so that one was rebuilt rather than dropped, and you will need to set it again. Blocks using those settings will stop behaving responsively until you set them again with core's controls: per-viewport visibility for hiding, viewport layout overrides for stacking, and theme.json `settings.viewport` for breakpoints. The old attributes stay in your post content and are inert — but only until that post is next saved in the block editor, at which point they are dropped for good. Gutenberg serialises only currently-registered attributes, and these are no longer registered. If you want a record of which blocks used them, take it before editing those posts. Grid vertical alignment is unchanged and still works. Requires WordPress 7.1 or later.
 
 = 2026.02.10 =
 Grid vertical alignment now accessible in block toolbar. Decorative borders significantly improved with smoother waves, better positioning, and working left/right borders.

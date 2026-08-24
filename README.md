@@ -1,12 +1,27 @@
 # Awesome Group
 
-Adds the vertical alignment control that core's Grid layout is missing on Group blocks.
+Fills two gaps core leaves on Group blocks: vertical alignment on Grid layouts, and reversed order at the mobile viewport.
 
 ## What it does
 
-Core's Grid layout has no vertical alignment control. Core's layout support applies `verticalAlignment` to flex layouts only — the grid branch in `wp-includes/block-supports/layout.php` emits `grid-template-columns` and `grid-template-rows` and never `align-items`.
+Two things core still does not do:
 
-This plugin adds Top / Center / Bottom / Stretch to the block toolbar for Group blocks using a Grid layout. That is all it does.
+**Grid vertical alignment.** Core's layout support applies `verticalAlignment` to flex layouts only — the grid branch in `wp-includes/block-supports/layout.php` emits `grid-template-columns` and `grid-template-rows` and never `align-items`. This adds Top / Center / Bottom / Stretch to the block toolbar for Grid layouts.
+
+**Reversed order at the mobile viewport.** Core's flex `orientation` accepts `horizontal` or `vertical` only, with no reversed option anywhere in its layout support, so a viewport override cannot express it. This adds a single toggle for Flex layouts.
+
+Both use core's own primitives rather than a parallel system. The reverse rule is scoped to the mobile media query core derives from `theme.json` `settings.viewport` — no breakpoint of this plugin's own — and both are emitted through core's style engine, under this plugin's own context so they print in their own tag rather than blending anonymously into core's.
+
+Selectors are deliberately doubled (`.ag-1.ag-1`, specificity `(0,2,0)`). Print order is not a safe basis for winning a tie: on a block theme the template resolves before `wp_head`, so this plugin's stylesheet is queued *before* the theme's own — verified against Twenty Twenty-Five — and an equal-specificity theme rule would otherwise win. Doubling the class restores the guarantee the old inline `<style>` had, without `!important`:
+
+```css
+@media (width <= 480px){.wp-container-core-group-is-layout-1444063a{flex-direction:column;align-items:flex-start;}}
+@media (width <= 480px){.ag-1.ag-1{flex-direction:column-reverse;}}
+```
+
+Core stacks the block; this reverses the direction. They compose.
+
+The reverse also works on its own. A block core has *not* stacked is still a row at that width, so it gets `row-reverse` rather than `column-reverse` — reversing the row instead of silently stacking it. The editor and the front end decide that the same way, from the same attributes.
 
 ## What it used to do, and where that lives now
 
@@ -16,7 +31,7 @@ Most of the rest of this plugin is now core — per-viewport block visibility in
 |---|---|
 | Hide on mobile / desktop | Block visibility, per viewport. Three configurable breakpoints instead of one hardcoded. Note it hides with `display: none !important` in a media query — same technique as the removed code, so this is parity, not an improvement. Markup stays in the source but `display: none` keeps it out of the accessibility tree. Core does also set `fetchpriority="auto"` on images in hidden blocks |
 | Stack on mobile | Viewport layout overrides — switch the editor to a viewport and change the layout there |
-| Stack direction (reverse) | **No core equivalent.** Core's `orientation` is `horizontal` or `vertical` only. Removed rather than kept: it existed only to modify stack-on-mobile, and reversing visual order without reversing focus/reading order is an accessibility trap. Use `flex-direction: column-reverse` in theme CSS if you need it |
+| Stack direction (reverse) | **No core equivalent — kept, and rebuilt.** Core's `orientation` is `horizontal` or `vertical` only. Now the Reverse Order on Mobile toggle, layered on top of core's stacking instead of this plugin's old CSS |
 | Custom breakpoint | `theme.json` → `settings.viewport`. Site-wide instead of per block. Defaults: `@mobile` ≤480px, `@tablet` 480–782px, `@desktop` >782px |
 | Grid stacking | Usually nothing to set — a *minimum column width* grid already collapses via `repeat(auto-fill, minmax(min(WIDTH, 100%), 1fr))`. A fixed *column count* grid does not: core emits `repeat(N, minmax(0, 1fr))` at every width, so set a mobile viewport override of 1 column |
 
@@ -42,11 +57,11 @@ npm run build
 
 ## Usage
 
-1. Add a Group block and set its layout to Grid.
-2. Select the block. The vertical alignment control appears in the block toolbar.
-3. Pick Top, Center, Bottom, or Stretch.
+**Grid vertical alignment** — add a Group block, set its layout to Grid, select it, and the vertical alignment control appears in the block toolbar. Flex layouts already have this in core, so the control only appears for Grid.
 
-Flex layouts already have this in core, so the control only appears for Grid.
+**Reverse order on mobile** — set a Group block's layout to Flex, then use Responsive Order → "Reverse order on mobile" in the inspector. It only appears for Flex: on a Grid the visual order comes from track placement, so `column-reverse` would do nothing there.
+
+Reversing visual order does not reverse keyboard focus or screen reader reading order, so the two will disagree. The control says so. Reorder the blocks themselves if the sequence genuinely matters.
 
 ## Requirements
 
@@ -84,7 +99,9 @@ awesome-group/
 
 ## Accessibility
 
-The one remaining control is core's own `BlockVerticalAlignmentControl`, rendered in the block toolbar, so it inherits core's labelling and keyboard behaviour.
+The grid alignment control is core's own `BlockVerticalAlignmentControl`, rendered in the block toolbar, so it inherits core's labelling and keyboard behaviour.
+
+The reverse-order toggle carries an explicit warning that it changes visual order only — keyboard focus order and screen reader reading order stay as authored. That warning existed on the old stack-direction control and was deliberately carried over, because the hazard did not go away when the implementation changed.
 
 The reduced-motion rule, the shape-and-colour editor indicators, and the hidden-content warning all went with the features they described. Nothing here still needs them.
 
