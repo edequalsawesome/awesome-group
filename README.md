@@ -1,6 +1,6 @@
 # Awesome Group
 
-Fills two gaps core leaves on Group blocks: vertical alignment on Grid layouts, and reversed order at the mobile viewport.
+Fills two gaps core leaves on Group blocks: vertical alignment on Grid layouts, and reversed order at any viewport.
 
 ## What it does
 
@@ -8,9 +8,9 @@ Two things core still does not do:
 
 **Grid vertical alignment.** Core's layout support applies `verticalAlignment` to flex layouts only — the grid branch in `wp-includes/block-supports/layout.php` emits `grid-template-columns` and `grid-template-rows` and never `align-items`. This adds Top / Center / Bottom / Stretch to the block toolbar for Grid layouts.
 
-**Reversed order at the mobile viewport.** Core's flex `orientation` accepts `horizontal` or `vertical` only, with no reversed option anywhere in its layout support, so a viewport override cannot express it. This adds a single toggle for Flex layouts.
+**Reversed order at a viewport.** Core's flex `orientation` accepts `horizontal` or `vertical` only, with no reversed option anywhere in its layout support, so a viewport override cannot express it. This adds one toggle per viewport for Flex layouts. The viewport list and its breakpoints come from core and are passed to the editor from PHP; the editor keeps a literal fallback for the one case where that inline script does not print, and a toggle offered by that fallback but unsupported by the server is inert rather than wrong.
 
-Both use core's own primitives rather than a parallel system. The reverse rule is scoped to the mobile media query core derives from `theme.json` `settings.viewport` — no breakpoint of this plugin's own — and both are emitted through core's style engine, under this plugin's own context so they print in their own tag rather than blending anonymously into core's.
+Both use core's own primitives rather than a parallel system. The reverse rule is scoped to whichever of core's viewport media queries the block selects, derived from `theme.json` `settings.viewport` — no breakpoint of this plugin's own — and both are emitted through core's style engine, under this plugin's own context so they print in their own tag rather than blending anonymously into core's.
 
 Selectors are deliberately doubled (`.ag-1.ag-1`, specificity `(0,2,0)`). Print order is not a safe basis for winning a tie: on a block theme the template resolves before `wp_head`, so this plugin's stylesheet is queued *before* the theme's own — verified against Twenty Twenty-Five — and an equal-specificity theme rule would otherwise win. Doubling the class restores the guarantee the old inline `<style>` had, without `!important`:
 
@@ -31,7 +31,7 @@ Most of the rest of this plugin is now core — per-viewport block visibility in
 |---|---|
 | Hide on mobile / desktop | Block visibility, per viewport. Three configurable breakpoints instead of one hardcoded. Note it hides with `display: none !important` in a media query — same technique as the removed code, so this is parity, not an improvement. Markup stays in the source but `display: none` keeps it out of the accessibility tree. Core does also set `fetchpriority="auto"` on images in hidden blocks |
 | Stack on mobile | Viewport layout overrides — switch the editor to a viewport and change the layout there |
-| Stack direction (reverse) | **No core equivalent — kept, and rebuilt.** Core's `orientation` is `horizontal` or `vertical` only. Now the Reverse Order on Mobile toggle, layered on top of core's stacking instead of this plugin's old CSS |
+| Stack direction (reverse) | **No core equivalent — kept, and rebuilt.** Core's `orientation` is `horizontal` or `vertical` only. Now per-viewport Reverse Order toggles across all three of core's viewports, layered on core's stacking instead of this plugin's old CSS |
 | Custom breakpoint | `theme.json` → `settings.viewport`. Site-wide instead of per block. Defaults: `@mobile` ≤480px, `@tablet` 480–782px, `@desktop` >782px |
 | Grid stacking | Usually nothing to set — a *minimum column width* grid already collapses via `repeat(auto-fill, minmax(min(WIDTH, 100%), 1fr))`. A fixed *column count* grid does not: core emits `repeat(N, minmax(0, 1fr))` at every width, so set a mobile viewport override of 1 column |
 
@@ -59,7 +59,7 @@ npm run build
 
 **Grid vertical alignment** — add a Group block, set its layout to Grid, select it, and the vertical alignment control appears in the block toolbar. Flex layouts already have this in core, so the control only appears for Grid.
 
-**Reverse order on mobile** — set a Group block's layout to Flex, then use Responsive Order → "Reverse order on mobile" in the inspector. It only appears for Flex: on a Grid the visual order comes from track placement, so `column-reverse` would do nothing there.
+**Reverse order** — set a Group block's layout to Flex, then use Responsive Order in the inspector. There is one toggle per viewport (Mobile, Tablet, Desktop), using core's own breakpoints. It only appears for Flex: on a Grid the visual order comes from track placement, so `column-reverse` would do nothing there.
 
 Reversing visual order does not reverse keyboard focus or screen reader reading order, so the two will disagree. The control says so. Reorder the blocks themselves if the sequence genuinely matters.
 

@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       Awesome Group
- * Description:       Fills two gaps core leaves on Group blocks: vertical alignment on Grid layouts, and reversed order at the mobile viewport.
+ * Description:       Fills two gaps core leaves on Group blocks: vertical alignment on Grid layouts, and reversed order at any viewport.
  * Requires at least: 7.1
  * Requires PHP:      7.4
  * Version:           2026.08.001
@@ -56,6 +56,14 @@ function awesome_group_enqueue_editor_assets() {
 		$asset['version'],
 		true
 	);
+
+	// The editor never hardcodes the viewport list; it comes from the same
+	// core call the front end uses, so the two cannot drift.
+	wp_add_inline_script(
+		'awesome-group-editor',
+		'window.awesomeGroupViewports = ' . wp_json_encode( awesome_group_supported_viewports() ) . ';',
+		'before'
+	);
 }
 add_action( 'enqueue_block_editor_assets', 'awesome_group_enqueue_editor_assets' );
 
@@ -73,22 +81,28 @@ add_action( 'enqueue_block_editor_assets', 'awesome_group_enqueue_editor_assets'
  * @return array Filtered settings.
  */
 function awesome_group_editor_canvas_styles( $settings ) {
-	$media_query = awesome_group_mobile_media_query();
+	$media_queries = awesome_group_viewport_media_queries();
 
-	if ( ! $media_query ) {
+	if ( empty( $media_queries ) ) {
 		return $settings;
 	}
 
-	// Two explicit classes rather than inferring the axis from core's layout
-	// classes: the editor HOC decides which to apply using the same rule the
-	// front end uses, so the preview and the published page cannot disagree.
-	// Doubled classes for the same reason the front end doubles its selector:
-	// core's own layout rule for the block is a single class, and this needs to
-	// win that tie without !important.
-	$css = $media_query . ' {'
-		. ' .ag-reverse-row.ag-reverse-row { flex-direction: row-reverse; }'
-		. ' .ag-reverse-column.ag-reverse-column { flex-direction: column-reverse; }'
-		. ' }';
+	// Explicit per-viewport classes rather than inferring the axis from core's
+	// layout classes: the editor HOC picks which to apply using the same rule
+	// the front end uses, so preview and published page cannot disagree.
+	// Doubled for the same reason the front end doubles its selector — core's
+	// own layout rule is a single class and this must win that tie without
+	// !important.
+	$css = '';
+	foreach ( $media_queries as $viewport => $query ) {
+		$row    = '.ag-rev-' . $viewport . '-row';
+		$column = '.ag-rev-' . $viewport . '-column';
+
+		$css .= $query . ' {'
+			. ' ' . $row . $row . ' { flex-direction: row-reverse; }'
+			. ' ' . $column . $column . ' { flex-direction: column-reverse; }'
+			. ' }';
+	}
 
 	$settings['styles'][] = array(
 		'css'            => $css,
@@ -101,43 +115,61 @@ function awesome_group_editor_canvas_styles( $settings ) {
 add_filter( 'block_editor_settings_all', 'awesome_group_editor_canvas_styles' );
 
 /**
- * The site's mobile viewport media query, from core's own viewport settings.
+ * The site's viewport media queries, from core's own viewport settings.
  *
- * Deliberately not a breakpoint of our own: theme.json settings.viewport is
+ * Deliberately not breakpoints of our own: theme.json settings.viewport is
  * where the site defines these, and core's block-visibility, states, and layout
- * supports all read them through this same call.
+ * supports all read them through this same call. Keyed by plain viewport name
+ * (mobile/tablet/desktop) rather than core's '@'-prefixed style-state keys.
  *
- * @return string|null Media query string, or null if core cannot supply one.
+ * @return array Map of viewport name to media query string. Empty if core
+ *               cannot supply them.
  */
-function awesome_group_mobile_media_query() {
+function awesome_group_viewport_media_queries() {
 	static $cached = null;
 
 	if ( null !== $cached ) {
-		return $cached ?: null;
+		return $cached;
 	}
 
 	// ceiling: WP_Theme_JSON's class docblock disclaims extender use, and core
 	// ships no procedural wrapper for the breakpoint-to-media-query conversion
 	// the way it does for the style engine. Reaching in is the only option that
-	// does not duplicate core's sanitiser. The guard below fails soft to null,
-	// which disables the feature rather than emitting an unscoped rule.
+	// does not duplicate core's sanitiser, and it is the same call core's own
+	// block-visibility support makes.
 	// Re-check this on every major WordPress upgrade; move to a public wrapper
-	// if core ever adds one.
+	// if core ever adds one. The guard fails soft to an empty array.
 	if ( ! class_exists( 'WP_Theme_JSON' ) || ! method_exists( 'WP_Theme_JSON', 'get_viewport_media_queries' ) ) {
-		$cached = false;
-		return null;
+		$cached = array();
+		return $cached;
 	}
 
-	$queries = WP_Theme_JSON::get_viewport_media_queries( wp_get_global_settings( array( 'viewport' ) ) );
-	$cached  = $queries['@mobile'] ?? false;
+	$queries = WP_Theme_JSON::get_viewport_media_queries(
+		wp_get_global_settings( array( 'viewport' ) ),
+		array( 'include_desktop' => true )
+	);
 
-	return $cached ?: null;
+	$cached = array();
+	foreach ( $queries as $state => $query ) {
+		$cached[ ltrim( $state, '@' ) ] = $query;
+	}
+
+	return $cached;
 }
 
 /**
- * Does this block end up as a column at the mobile viewport?
+ * The viewports this plugin will reverse at.
  *
- * Core writes viewport layout overrides to attrs.style['@mobile'].layout. A
+ * @return string[] Viewport names, in core's own order.
+ */
+function awesome_group_supported_viewports() {
+	return array_keys( awesome_group_viewport_media_queries() );
+}
+
+/**
+ * Does this block end up as a column at the given viewport?
+ *
+ * Core writes viewport layout overrides to attrs.style['@{viewport}'].layout. A
  * flex block is a column there if it was overridden to vertical, or if its base
  * orientation is already vertical and nothing overrode it.
  *
@@ -145,19 +177,46 @@ function awesome_group_mobile_media_query() {
  * — it relies on the CSS initial value of `row`. Emitting column-reverse
  * against that would not reverse the row, it would silently stack it.
  *
- * @param array $attrs Block attributes.
+ * @param array  $attrs    Block attributes.
+ * @param string $viewport Viewport name (mobile/tablet/desktop).
  * @return bool
  */
-function awesome_group_is_column_at_mobile( $attrs ) {
-	$base     = isset( $attrs['layout'] ) && is_array( $attrs['layout'] ) ? $attrs['layout'] : array();
-	$style    = isset( $attrs['style'] ) && is_array( $attrs['style'] ) ? $attrs['style'] : array();
-	$override = $style['@mobile']['layout'] ?? null;
+function awesome_group_is_column_at_viewport( $attrs, $viewport ) {
+	$base  = isset( $attrs['layout'] ) && is_array( $attrs['layout'] ) ? $attrs['layout'] : array();
+	$style = isset( $attrs['style'] ) && is_array( $attrs['style'] ) ? $attrs['style'] : array();
+
+	// Core's layout support calls get_viewport_media_queries() WITHOUT
+	// include_desktop, so its responsive loop only ever processes @mobile and
+	// @tablet — a @desktop layout override is never rendered. Honouring one
+	// here would emit column-reverse against a block core left as a row, which
+	// stacks it. Desktop always uses the base orientation.
+	$override = 'desktop' === $viewport ? null : ( $style[ '@' . $viewport ]['layout'] ?? null );
 
 	if ( is_array( $override ) && array_key_exists( 'orientation', $override ) ) {
 		return 'vertical' === $override['orientation'];
 	}
 
 	return 'vertical' === ( $base['orientation'] ?? 'horizontal' );
+}
+
+/**
+ * The viewports a block is set to reverse at, validated against core's own set.
+ *
+ * @param array $attrs Block attributes.
+ * @return string[]
+ */
+function awesome_group_reverse_viewports( $attrs ) {
+	$requested = $attrs['awesomeReverseViewports'] ?? array();
+
+	// Block JSON is not type-enforced server-side, so a crafted block comment
+	// can supply anything here.
+	if ( ! is_array( $requested ) ) {
+		return array();
+	}
+
+	$supported = awesome_group_supported_viewports();
+
+	return array_values( array_intersect( $supported, array_filter( $requested, 'is_string' ) ) );
 }
 
 /**
@@ -183,10 +242,11 @@ function awesome_group_register_attributes() {
 
 	// Core's flex `orientation` accepts horizontal or vertical only — there is
 	// no reversed option anywhere in its layout support, so a viewport override
-	// cannot express this.
-	$block_type->attributes['awesomeReverseOnMobile'] = array(
-		'type'    => 'boolean',
-		'default' => false,
+	// cannot express this. Stored as a list of core's own viewport names.
+	$block_type->attributes['awesomeReverseViewports'] = array(
+		'type'    => 'array',
+		'items'   => array( 'type' => 'string' ),
+		'default' => array(),
 	);
 }
 add_action( 'init', 'awesome_group_register_attributes', 20 );
@@ -209,7 +269,7 @@ function awesome_group_render_block( $block_content, $block ) {
 
 	// Cheapest possible bail, before building anything. Most Group blocks on a
 	// page use neither feature.
-	if ( empty( $attrs['awesomeGridVerticalAlignment'] ) && empty( $attrs['awesomeReverseOnMobile'] ) ) {
+	if ( empty( $attrs['awesomeGridVerticalAlignment'] ) && empty( $attrs['awesomeReverseViewports'] ) ) {
 		return $block_content;
 	}
 
@@ -232,11 +292,8 @@ function awesome_group_render_block( $block_content, $block ) {
 
 	// Reversal is a flex concept. On a grid the visual order is governed by
 	// track placement, so column-reverse would do nothing there.
-	//
-	// Strict true, not empty(): block JSON is not type-enforced server-side, and
-	// the string "false" is non-empty, so a crafted block comment could enable
-	// this by passing the word false.
-	$wants_reverse = 'flex' === $type && true === ( $attrs['awesomeReverseOnMobile'] ?? false );
+	$reverse_viewports = 'flex' === $type ? awesome_group_reverse_viewports( $attrs ) : array();
+	$wants_reverse     = ! empty( $reverse_viewports );
 
 	if ( ! $wants_align && ! $wants_reverse ) {
 		return $block_content;
@@ -263,22 +320,26 @@ function awesome_group_render_block( $block_content, $block ) {
 	}
 
 	if ( $wants_reverse ) {
-		$media_query = awesome_group_mobile_media_query();
+		$media_queries = awesome_group_viewport_media_queries();
 
-		// No media query means core cannot tell us the site's mobile
-		// breakpoint. Emitting the rule unscoped would reverse the block at
-		// every width, which is worse than doing nothing.
-		if ( $media_query ) {
+		foreach ( $reverse_viewports as $viewport ) {
+			// No media query means core cannot tell us this breakpoint.
+			// Emitting the rule unscoped would reverse at every width, which is
+			// worse than doing nothing.
+			if ( empty( $media_queries[ $viewport ] ) ) {
+				continue;
+			}
+
 			// A block core has stacked is a column, so reverse the column. One
-			// that is still a row at that width needs row-reverse: emitting
+			// still a row at that width needs row-reverse: emitting
 			// column-reverse there would stack it, which is not what a control
 			// called "reverse order" should silently do.
-			$direction = awesome_group_is_column_at_mobile( $attrs ) ? 'column-reverse' : 'row-reverse';
+			$direction = awesome_group_is_column_at_viewport( $attrs, $viewport ) ? 'column-reverse' : 'row-reverse';
 
 			$css_rules[] = array(
 				'selector'     => $selector,
 				'declarations' => array( 'flex-direction' => $direction ),
-				'rules_group'  => $media_query,
+				'rules_group'  => $media_queries[ $viewport ],
 			);
 		}
 	}
