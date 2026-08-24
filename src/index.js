@@ -7,8 +7,8 @@
  * under settings.viewport (WP 7.1). Core's implementation beats what was here
  * by being site-wide rather than per-block, with three configurable breakpoints
  * instead of one hardcoded 768px. It hides the same way the removed code did,
- * with `display: none !important` inside a media query — that part is parity,
- * not an improvement, and the screen-reader caveat still applies.
+ * with `display: none !important` inside a media query — parity, not an
+ * improvement: markup stays in the source, out of the accessibility tree.
  *
  * One exception, stated honestly: reversed stack direction has NO core
  * equivalent — core's `orientation` is horizontal or vertical only. It was

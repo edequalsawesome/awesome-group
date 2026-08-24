@@ -14,11 +14,11 @@ Most of the rest of this plugin is now core — per-viewport block visibility in
 
 | Was | Now |
 |---|---|
-| Hide on mobile / desktop | Block visibility, per viewport. Three configurable breakpoints instead of one hardcoded. Note it hides with `display: none !important` in a media query — same technique as the removed code, so the screen-reader caveat still applies. Core does also set `fetchpriority="auto"` on images in hidden blocks |
+| Hide on mobile / desktop | Block visibility, per viewport. Three configurable breakpoints instead of one hardcoded. Note it hides with `display: none !important` in a media query — same technique as the removed code, so this is parity, not an improvement. Markup stays in the source but `display: none` keeps it out of the accessibility tree. Core does also set `fetchpriority="auto"` on images in hidden blocks |
 | Stack on mobile | Viewport layout overrides — switch the editor to a viewport and change the layout there |
 | Stack direction (reverse) | **No core equivalent.** Core's `orientation` is `horizontal` or `vertical` only. Removed rather than kept: it existed only to modify stack-on-mobile, and reversing visual order without reversing focus/reading order is an accessibility trap. Use `flex-direction: column-reverse` in theme CSS if you need it |
 | Custom breakpoint | `theme.json` → `settings.viewport`. Site-wide instead of per block. Defaults: `@mobile` ≤480px, `@tablet` 480–782px, `@desktop` >782px |
-| Grid stacking | Nothing to set. A grid with a minimum column width already collapses to one column via `repeat(auto-fill, minmax(min(WIDTH, 100%), 1fr))` |
+| Grid stacking | Usually nothing to set — a *minimum column width* grid already collapses via `repeat(auto-fill, minmax(min(WIDTH, 100%), 1fr))`. A fixed *column count* grid does not: core emits `repeat(N, minmax(0, 1fr))` at every width, so set a mobile viewport override of 1 column |
 
 The custom breakpoint control never actually worked: it stored a value and rendered a `--ag-breakpoint` custom property, but media queries cannot read custom properties, so stacking always fired at a hardcoded 768px regardless. Rather than build per-block generated media queries to fix a feature core had since superseded, it was removed.
 
@@ -76,24 +76,19 @@ npm run format
 ```
 awesome-group/
 ├── src/
-│   ├── index.js       # Main JavaScript (block extensions)
-│   ├── editor.css     # Editor-only styles
-│   └── style.css      # Frontend + editor styles
-├── build/             # Compiled assets
+│   └── index.js       # Editor JavaScript (block extensions)
+├── build/             # Compiled assets (JS only — no stylesheet)
 ├── awesome-group.php  # Main plugin file
 └── package.json       # Dependencies and scripts
 ```
 
 ## Accessibility
 
-- Respects `prefers-reduced-motion` for users who prefer less animation
-- Uses both color AND shape for visual indicators (not color alone)
-- Includes proper help text and ARIA labels
-- Warns users that hidden content is removed from screen readers
+The one remaining control is core's own `BlockVerticalAlignmentControl`, rendered in the block toolbar, so it inherits core's labelling and keyboard behaviour.
 
-## Roadmap
+The reduced-motion rule, the shape-and-colour editor indicators, and the hidden-content warning all went with the features they described. Nothing here still needs them.
 
-- [ ] Container query support for custom breakpoints
+One thing worth knowing if you are migrating: core's per-viewport hiding uses `display: none !important` inside a media query, the same technique the removed code used. The markup stays in the page source, but `display: none` removes it from the accessibility tree, so it is not announced. That is parity with what this plugin did, not an improvement — the old warning was accurate and the same caveat still applies.
 
 ## License
 

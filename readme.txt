@@ -24,11 +24,11 @@ Core's Grid layout has no vertical alignment control. Its layout support applies
 
 WordPress 7.0 shipped per-viewport block visibility and WordPress 7.1 added configurable viewport breakpoints, so you no longer need a plugin for responsive Group behaviour. Core's implementation is better than what this plugin had:
 
-* **Hide on mobile / desktop** is now block visibility. Select a block, open the Settings panel, and set its per-viewport visibility. Core has three breakpoints where this plugin had one, and its breakpoints are configurable. It hides with `display: none !important` inside a media query — the same technique this plugin used, so the screen-reader caveat still applies: hidden content stays in the DOM and remains reachable by assistive technology in some configurations. Core does additionally set `fetchpriority="auto"` on images inside hidden blocks, which this plugin never did.
+* **Hide on mobile / desktop** is now block visibility. Select a block, open the Settings panel, and set its per-viewport visibility. Core has three breakpoints where this plugin had one, and its breakpoints are configurable. It hides with `display: none !important` inside a media query — the same technique this plugin used. The markup stays in the page source but `display: none` removes it from the accessibility tree, so it is not announced. That is parity with the removed code rather than an improvement. Core does additionally set `fetchpriority="auto"` on images inside hidden blocks, which this plugin never did.
 * **Stack on mobile** is now a viewport layout override. Switch the editor to the mobile viewport and change the layout there; core stores an override for that breakpoint.
 * **Stack direction** has no core equivalent, and was removed rather than kept. Core's `orientation` accepts `horizontal` or `vertical` only — there is no reversed option anywhere in its layout support. This setting existed solely to modify stack-on-mobile, which is now core's job, and reversing visual order without reversing keyboard focus and screen reader order is a documented accessibility trap. If you need it, `flex-direction: column-reverse` in your theme's CSS does the job with the same caveat.
 * **Custom breakpoints** now live in `theme.json` under `settings.viewport`, so they are set once for the whole site instead of per block. The defaults are `@mobile` at 480px, `@tablet` between 480px and 782px, and `@desktop` above 782px.
-* **Grid stacking** needs no setting at all. A grid with a minimum column width collapses to one column on its own, because core emits `repeat(auto-fill, minmax(min(WIDTH, 100%), 1fr))`.
+* **Grid stacking** usually needs no setting at all: a grid using a *minimum column width* collapses to one column on its own, because core emits `repeat(auto-fill, minmax(min(WIDTH, 100%), 1fr))`. A grid using an explicit *column count* does not — core emits `repeat(N, minmax(0, 1fr))` and holds N columns at every width, so those need a mobile viewport override setting the column count to 1.
 
 = Developer Friendly =
 
@@ -51,7 +51,7 @@ Yes! This plugin extends core WordPress blocks and works with any block-enabled 
 
 = Will this slow down my site? =
 
-No. The plugin only loads minimal CSS and uses native browser features. The JavaScript only runs in the block editor.
+No — less than before. The plugin now loads no stylesheet at all on the front end; the one remaining feature emits a single inline rule on blocks that use it. The JavaScript only runs in the block editor.
 
 = Can I use this with other block plugins? =
 
@@ -63,7 +63,7 @@ WordPress 7.0 and 7.1 shipped them. See the Description above for where each one
 
 = I upgraded and my blocks stopped stacking. What do I do? =
 
-Set the behaviour again with core's controls — per-viewport visibility for hiding, and viewport layout overrides for stacking. The old attributes stay in your post content harmlessly, but nothing reads them any more. See the Upgrade Notice for details.
+Set the behaviour again with core's controls — per-viewport visibility for hiding, and viewport layout overrides for stacking. The old attributes are inert but still present in your post content, and are dropped permanently the next time you save that post in the editor. See the Upgrade Notice for details.
 
 == Screenshots ==
 
@@ -131,7 +131,7 @@ Set the behaviour again with core's controls — per-viewport visibility for hid
 == Upgrade Notice ==
 
 = 2026.08.001 =
-Breaking change. Stack on mobile, custom breakpoints, and hide on mobile/desktop have been removed because WordPress now does all of them, better. Stack direction (reverse) has no core equivalent and was dropped as an accessibility trap rather than migrated. Blocks using those settings will stop behaving responsively until you set them again with core's controls: per-viewport visibility for hiding, viewport layout overrides for stacking, and theme.json `settings.viewport` for breakpoints. The old attributes remain in your post content and are harmless, but nothing reads them. Grid vertical alignment is unchanged and still works. Requires WordPress 7.1 or later.
+Breaking change. Stack on mobile, custom breakpoints, and hide on mobile/desktop have been removed because WordPress now does all of them, better. Stack direction (reverse) has no core equivalent and was dropped as an accessibility trap rather than migrated. Blocks using those settings will stop behaving responsively until you set them again with core's controls: per-viewport visibility for hiding, viewport layout overrides for stacking, and theme.json `settings.viewport` for breakpoints. The old attributes stay in your post content and are inert — but only until that post is next saved in the block editor, at which point they are dropped for good. Gutenberg serialises only currently-registered attributes, and these are no longer registered. If you want a record of which blocks used them, take it before editing those posts. Grid vertical alignment is unchanged and still works. Requires WordPress 7.1 or later.
 
 = 2026.02.10 =
 Grid vertical alignment now accessible in block toolbar. Decorative borders significantly improved with smoother waves, better positioning, and working left/right borders.
