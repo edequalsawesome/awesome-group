@@ -29,10 +29,10 @@ Most of the rest of this plugin is now core — per-viewport block visibility in
 
 | Was | Now |
 |---|---|
-| Hide on mobile / desktop | Block visibility, per viewport. Three configurable breakpoints instead of one hardcoded. Note it hides with `display: none !important` in a media query — same technique as the removed code, so this is parity, not an improvement. Markup stays in the source but `display: none` keeps it out of the accessibility tree. Core does also set `fetchpriority="auto"` on images in hidden blocks |
+| Hide on mobile / desktop | Block visibility, per viewport. Three viewports instead of one hardcoded breakpoint. Note it hides with `display: none !important` in a media query — same technique as the removed code, so this is parity, not an improvement. Markup stays in the source but `display: none` keeps it out of the accessibility tree. Core does also set `fetchpriority="auto"` on images in hidden blocks |
 | Stack on mobile | Viewport layout overrides — switch the editor to a viewport and change the layout there |
 | Stack direction (reverse) | **No core equivalent — kept, and rebuilt.** Core's `orientation` is `horizontal` or `vertical` only. Now per-viewport Reverse Order toggles across all three of core's viewports, layered on core's stacking instead of this plugin's old CSS |
-| Custom breakpoint | `theme.json` → `settings.viewport`. Site-wide instead of per block. Defaults: `@mobile` ≤480px, `@tablet` >480px and ≤782px, `@desktop` >782px |
+| Custom breakpoint | `theme.json` → `settings.viewport`. Site-wide instead of per block. Two values are configurable — `mobile` and `tablet` — and desktop is whatever is left above the tablet breakpoint rather than a setting of its own. Defaults: `@mobile` ≤480px, `@tablet` >480px and ≤782px, `@desktop` >782px |
 | Grid stacking | Usually nothing to set — a *minimum column width* grid already collapses via `repeat(auto-fill, minmax(min(WIDTH, 100%), 1fr))`. A fixed *column count* grid does not: core emits `repeat(N, minmax(0, 1fr))` at every width, so set a mobile viewport override of 1 column |
 
 The custom breakpoint control never actually worked: it stored a value and rendered a `--ag-breakpoint` custom property, but media queries cannot read custom properties, so stacking always fired at a hardcoded 768px regardless. Rather than build per-block generated media queries to fix a feature core had since superseded, it was removed.
