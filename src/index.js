@@ -1,371 +1,153 @@
 /**
- * Awesome Group - Responsive layout controls for Group blocks
+ * Awesome Group - the vertical alignment control core's Grid layout is missing
+ *
+ * Almost everything else this plugin used to do is now core. WordPress 7.0
+ * shipped per-viewport block visibility (block-supports/block-visibility.php)
+ * and viewport layout overrides, with breakpoints configurable in theme.json
+ * under settings.viewport (WP 7.1). Core's implementation beats what was here
+ * by being site-wide rather than per-block, with three configurable breakpoints
+ * instead of one hardcoded 768px. It hides the same way the removed code did,
+ * with `display: none !important` inside a media query — that part is parity,
+ * not an improvement, and the screen-reader caveat still applies.
+ *
+ * One exception, stated honestly: reversed stack direction has NO core
+ * equivalent — core's `orientation` is horizontal or vertical only. It was
+ * dropped anyway, because it only ever modified stack-on-mobile (now core's
+ * job) and because reversing visual order without reversing focus and reading
+ * order is an accessibility trap. Theme CSS can do it if it is really wanted.
+ *
+ * What core still does not do is vertical alignment on a Grid layout. Core's
+ * layout support applies verticalAlignment to flex only — the grid branch emits
+ * grid-template-columns and grid-template-rows and never align-items. That gap
+ * is the whole of this plugin now.
  */
 
 import { addFilter } from '@wordpress/hooks';
 import { createHigherOrderComponent } from '@wordpress/compose';
 import {
-	InspectorControls,
 	BlockControls,
 	BlockVerticalAlignmentControl,
 } from '@wordpress/block-editor';
-import {
-	PanelBody,
-	ToggleControl,
-	SelectControl,
-	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis -- no stable UnitControl exists yet; revisit when it graduates.
-	__experimentalUnitControl as UnitControl,
-} from '@wordpress/components';
-import { __ } from '@wordpress/i18n';
-
-import './style.css';
-import './editor.css';
 
 /**
- * Supported blocks for responsive controls.
- * Row and Stack are layout variations of core/group, not separate block
- * types, so core/group alone covers Group, Row, and Stack.
+ * Row and Stack are layout variations of core/group, not separate block types,
+ * so core/group alone covers Group, Row, and Stack.
  */
 const SUPPORTED_BLOCKS = [ 'core/group' ];
 
-/**
- * Supported blocks for grid alignment (Grid layout is missing vertical alignment!)
- */
-const GRID_ALIGNMENT_BLOCKS = [ 'core/group' ];
+/** Editor alignment keyword to its CSS align-items value. */
+const ALIGN_MAP = {
+	top: 'start',
+	center: 'center',
+	bottom: 'end',
+	stretch: 'stretch',
+};
 
 /**
- * Add custom attributes to supported blocks
+ * Register the alignment attribute on supported blocks.
+ *
  * @param {Object} settings Block settings being filtered.
  * @param {string} name     Block name.
  * @return {Object} Filtered block settings.
  */
-function addResponsiveAttributes( settings, name ) {
-	// Responsive layout attributes (Group + Row)
-	if ( SUPPORTED_BLOCKS.includes( name ) ) {
-		settings = {
-			...settings,
-			attributes: {
-				...settings.attributes,
-				awesomeStackOnMobile: {
-					type: 'boolean',
-					default: false,
-				},
-				awesomeMobileBreakpoint: {
-					type: 'string',
-					default: '768px',
-				},
-				awesomeStackDirection: {
-					type: 'string',
-					default: 'column',
-				},
-				awesomeHideOnMobile: {
-					type: 'boolean',
-					default: false,
-				},
-				awesomeHideOnDesktop: {
-					type: 'boolean',
-					default: false,
-				},
-			},
-		};
+function addGridAlignmentAttribute( settings, name ) {
+	if ( ! SUPPORTED_BLOCKS.includes( name ) ) {
+		return settings;
 	}
 
-	// Grid vertical alignment (WordPress forgot to add this!)
-	if ( GRID_ALIGNMENT_BLOCKS.includes( name ) ) {
-		settings = {
-			...settings,
-			attributes: {
-				...settings.attributes,
-				awesomeGridVerticalAlignment: {
-					type: 'string',
-					default: '',
-				},
+	return {
+		...settings,
+		attributes: {
+			...settings.attributes,
+			awesomeGridVerticalAlignment: {
+				type: 'string',
+				default: '',
 			},
-		};
-	}
-
-	return settings;
+		},
+	};
 }
 
 addFilter(
 	'blocks.registerBlockType',
 	'awesome-group/add-attributes',
-	addResponsiveAttributes
+	addGridAlignmentAttribute
 );
 
 /**
- * Add inspector controls for responsive settings
+ * Add the toolbar control, for grid layouts only.
  */
-const withResponsiveControls = createHigherOrderComponent( ( BlockEdit ) => {
+const withGridAlignmentControl = createHigherOrderComponent( ( BlockEdit ) => {
 	return ( props ) => {
 		const { name, attributes, setAttributes } = props;
 
-		const showResponsiveControls = SUPPORTED_BLOCKS.includes( name );
-		const showGridAlignmentControls =
-			GRID_ALIGNMENT_BLOCKS.includes( name );
-
-		if ( ! showResponsiveControls && ! showGridAlignmentControls ) {
+		if (
+			! SUPPORTED_BLOCKS.includes( name ) ||
+			attributes.layout?.type !== 'grid'
+		) {
 			return <BlockEdit { ...props } />;
 		}
-
-		const {
-			awesomeStackOnMobile,
-			awesomeMobileBreakpoint,
-			awesomeStackDirection,
-			awesomeHideOnMobile,
-			awesomeHideOnDesktop,
-			awesomeGridVerticalAlignment,
-		} = attributes;
-
-		// Only show stack controls for flex/grid layouts
-		const layout = attributes.layout || {};
-		const showStackControls =
-			layout.type === 'flex' || layout.type === 'grid';
-
-		// Only show grid alignment for grid layouts
-		const isGridLayout = layout.type === 'grid';
 
 		return (
 			<>
 				<BlockEdit { ...props } />
-				{ showGridAlignmentControls && isGridLayout && (
-					<BlockControls group="block">
-						<BlockVerticalAlignmentControl
-							value={ awesomeGridVerticalAlignment }
-							onChange={ ( alignment ) =>
-								setAttributes( {
-									awesomeGridVerticalAlignment: alignment,
-								} )
-							}
-							controls={ [
-								'top',
-								'center',
-								'bottom',
-								'stretch',
-							] }
-						/>
-					</BlockControls>
-				) }
-				<InspectorControls>
-					{ showResponsiveControls && (
-						<PanelBody
-							title={ __( 'Responsive Layout', 'awesome-group' ) }
-							initialOpen={ false }
-						>
-							{ showStackControls && (
-								<>
-									<ToggleControl
-										label={ __(
-											'Stack on mobile',
-											'awesome-group'
-										) }
-										help={ __(
-											'Stack items vertically on smaller screens',
-											'awesome-group'
-										) }
-										checked={ awesomeStackOnMobile }
-										onChange={ ( value ) =>
-											setAttributes( {
-												awesomeStackOnMobile: value,
-											} )
-										}
-									/>
-
-									{ awesomeStackOnMobile && (
-										<>
-											<UnitControl
-												label={ __(
-													'Breakpoint',
-													'awesome-group'
-												) }
-												value={
-													awesomeMobileBreakpoint
-												}
-												onChange={ ( value ) =>
-													setAttributes( {
-														awesomeMobileBreakpoint:
-															value,
-													} )
-												}
-												units={ [
-													{
-														value: 'px',
-														label: 'px',
-													},
-													{
-														value: 'em',
-														label: 'em',
-													},
-													{
-														value: 'rem',
-														label: 'rem',
-													},
-												] }
-											/>
-
-											<SelectControl
-												label={ __(
-													'Stack direction',
-													'awesome-group'
-												) }
-												value={ awesomeStackDirection }
-												help={
-													awesomeStackDirection ===
-													'column-reverse'
-														? __(
-																'Warning: Reverse order changes visual order but not keyboard focus order or screen reader reading order.',
-																'awesome-group'
-														  )
-														: ''
-												}
-												options={ [
-													{
-														label: __(
-															'Column (top to bottom)',
-															'awesome-group'
-														),
-														value: 'column',
-													},
-													{
-														label: __(
-															'Column reverse (bottom to top)',
-															'awesome-group'
-														),
-														value: 'column-reverse',
-													},
-												] }
-												onChange={ ( value ) =>
-													setAttributes( {
-														awesomeStackDirection:
-															value,
-													} )
-												}
-											/>
-										</>
-									) }
-								</>
-							) }
-
-							<ToggleControl
-								label={ __(
-									'Hide on mobile',
-									'awesome-group'
-								) }
-								help={ __(
-									'Completely hides this block on mobile. Note: Hidden content is also removed from screen readers.',
-									'awesome-group'
-								) }
-								checked={ awesomeHideOnMobile }
-								onChange={ ( value ) =>
-									setAttributes( {
-										awesomeHideOnMobile: value,
-									} )
-								}
-							/>
-
-							<ToggleControl
-								label={ __(
-									'Hide on desktop',
-									'awesome-group'
-								) }
-								help={ __(
-									'Completely hides this block on desktop. Note: Hidden content is also removed from screen readers.',
-									'awesome-group'
-								) }
-								checked={ awesomeHideOnDesktop }
-								onChange={ ( value ) =>
-									setAttributes( {
-										awesomeHideOnDesktop: value,
-									} )
-								}
-							/>
-						</PanelBody>
-					) }
-				</InspectorControls>
+				<BlockControls group="block">
+					<BlockVerticalAlignmentControl
+						value={ attributes.awesomeGridVerticalAlignment }
+						onChange={ ( alignment ) =>
+							setAttributes( {
+								awesomeGridVerticalAlignment: alignment,
+							} )
+						}
+						controls={ [ 'top', 'center', 'bottom', 'stretch' ] }
+					/>
+				</BlockControls>
 			</>
 		);
 	};
-}, 'withResponsiveControls' );
+}, 'withGridAlignmentControl' );
 
 addFilter(
 	'editor.BlockEdit',
-	'awesome-group/with-responsive-controls',
-	withResponsiveControls
+	'awesome-group/with-grid-alignment-control',
+	withGridAlignmentControl
 );
 
 /**
- * Add custom classes and styles in the editor
+ * Mirror the alignment in the editor canvas.
  */
-const withResponsiveClasses = createHigherOrderComponent(
+const withGridAlignmentStyle = createHigherOrderComponent(
 	( BlockListBlock ) => {
 		return ( props ) => {
 			const { name, attributes } = props;
+			const alignValue =
+				ALIGN_MAP[ attributes.awesomeGridVerticalAlignment ];
 
-			const isSupported = SUPPORTED_BLOCKS.includes( name );
-			const isGridAlignmentSupported =
-				GRID_ALIGNMENT_BLOCKS.includes( name );
-
-			if ( ! isSupported && ! isGridAlignmentSupported ) {
+			if (
+				! SUPPORTED_BLOCKS.includes( name ) ||
+				attributes.layout?.type !== 'grid' ||
+				! alignValue
+			) {
 				return <BlockListBlock { ...props } />;
 			}
 
-			const {
-				awesomeStackOnMobile,
-				awesomeHideOnMobile,
-				awesomeHideOnDesktop,
-				awesomeGridVerticalAlignment,
-				layout,
-			} = attributes;
-
-			let wrapperProps = props.wrapperProps || {};
-
-			const className = [
-				props.className,
-				awesomeStackOnMobile && 'ag-stack-mobile',
-				awesomeHideOnMobile && 'ag-hide-mobile',
-				awesomeHideOnDesktop && 'ag-hide-desktop',
-			]
-				.filter( Boolean )
-				.join( ' ' );
-
-			// Grid vertical alignment in editor
-			if (
-				isGridAlignmentSupported &&
-				layout?.type === 'grid' &&
-				awesomeGridVerticalAlignment
-			) {
-				const alignMap = {
-					top: 'start',
-					center: 'center',
-					bottom: 'end',
-					stretch: 'stretch',
-				};
-				const alignValue = alignMap[ awesomeGridVerticalAlignment ];
-				if ( alignValue ) {
-					wrapperProps = {
-						...wrapperProps,
-						style: {
-							...wrapperProps.style,
-							alignItems: alignValue,
-						},
-					};
-				}
-			}
+			const wrapperProps = {
+				...( props.wrapperProps || {} ),
+				style: {
+					...( props.wrapperProps?.style || {} ),
+					alignItems: alignValue,
+				},
+			};
 
 			return (
-				<BlockListBlock
-					{ ...props }
-					className={ className }
-					wrapperProps={ wrapperProps }
-				/>
+				<BlockListBlock { ...props } wrapperProps={ wrapperProps } />
 			);
 		};
 	},
-	'withResponsiveClasses'
+	'withGridAlignmentStyle'
 );
 
 addFilter(
 	'editor.BlockListBlock',
-	'awesome-group/with-responsive-classes',
-	withResponsiveClasses
+	'awesome-group/with-grid-alignment-style',
+	withGridAlignmentStyle
 );

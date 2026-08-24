@@ -1,19 +1,26 @@
 # Awesome Group
 
-Extends the WordPress Group and Row blocks with responsive layout controls and grid vertical alignment.
+Adds the vertical alignment control that core's Grid layout is missing on Group blocks.
 
-## Features
+## What it does
 
-### Responsive Layout Controls
-- **Stack on Mobile**: Automatically convert flex/grid layouts to vertical stacks on smaller screens
-- **Custom Breakpoints**: Choose your own breakpoint (480px, 600px, 768px, 1024px, or custom)
-- **Stack Direction**: Control whether items stack top-to-bottom or bottom-to-top
-- **Hide on Mobile/Desktop**: Show/hide blocks based on screen size
+Core's Grid layout has no vertical alignment control. Core's layout support applies `verticalAlignment` to flex layouts only — the grid branch in `wp-includes/block-supports/layout.php` emits `grid-template-columns` and `grid-template-rows` and never `align-items`.
 
-### Grid Vertical Alignment
-WordPress forgot to add vertical alignment controls for Grid layouts. We got you.
-- Top, Center, Bottom, Stretch alignment options
-- Works seamlessly with WordPress core grid layouts
+This plugin adds Top / Center / Bottom / Stretch to the block toolbar for Group blocks using a Grid layout. That is all it does.
+
+## What it used to do, and where that lives now
+
+Most of the rest of this plugin is now core — per-viewport block visibility in WordPress 7.0, configurable viewport breakpoints in 7.1:
+
+| Was | Now |
+|---|---|
+| Hide on mobile / desktop | Block visibility, per viewport. Three configurable breakpoints instead of one hardcoded. Note it hides with `display: none !important` in a media query — same technique as the removed code, so the screen-reader caveat still applies. Core does also set `fetchpriority="auto"` on images in hidden blocks |
+| Stack on mobile | Viewport layout overrides — switch the editor to a viewport and change the layout there |
+| Stack direction (reverse) | **No core equivalent.** Core's `orientation` is `horizontal` or `vertical` only. Removed rather than kept: it existed only to modify stack-on-mobile, and reversing visual order without reversing focus/reading order is an accessibility trap. Use `flex-direction: column-reverse` in theme CSS if you need it |
+| Custom breakpoint | `theme.json` → `settings.viewport`. Site-wide instead of per block. Defaults: `@mobile` ≤480px, `@tablet` 480–782px, `@desktop` >782px |
+| Grid stacking | Nothing to set. A grid with a minimum column width already collapses to one column via `repeat(auto-fill, minmax(min(WIDTH, 100%), 1fr))` |
+
+The custom breakpoint control never actually worked: it stored a value and rendered a `--ag-breakpoint` custom property, but media queries cannot read custom properties, so stacking always fired at a hardcoded 768px regardless. Rather than build per-block generated media queries to fix a feature core had since superseded, it was removed.
 
 ## Installation
 
@@ -35,21 +42,16 @@ npm run build
 
 ## Usage
 
-1. Add a Group or Row block to your content
-2. Select the block and open the block settings sidebar
-3. Find the "Responsive Layout" or "Grid Alignment" panels
-4. Enable the features you want and customize the settings
+1. Add a Group block and set its layout to Grid.
+2. Select the block. The vertical alignment control appears in the block toolbar.
+3. Pick Top, Center, Bottom, or Stretch.
 
-### Visual Indicators in the Editor
-When editing, you'll see visual indicators on blocks with responsive settings:
-- Blue circle: Stack on mobile enabled
-- Red square: Hide on mobile enabled
-- Yellow triangle: Hide on desktop enabled
+Flex layouts already have this in core, so the control only appears for Grid.
 
 ## Requirements
 
-- WordPress 6.4 or higher
-- PHP 7.4 or higher
+- WordPress 7.1 or later
+- PHP 7.4 or later
 
 ## Development
 

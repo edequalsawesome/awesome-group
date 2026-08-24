@@ -1,47 +1,47 @@
 === Awesome Group ===
 Contributors: edequalsawesome
-Tags: blocks, group, responsive, layout
-Requires at least: 6.4
-Tested up to: 6.7
+Tags: blocks, group, grid, layout, alignment
+Requires at least: 7.1
+Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2026.07.001
+Stable tag: 2026.08.001
 License: GPL-3.0
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
-Extends the Group and Row blocks with responsive layout controls and grid vertical alignment.
+Adds the vertical alignment control that core's Grid layout is missing on Group blocks.
 
 == Description ==
 
-Awesome Group supercharges WordPress core Group and Row blocks with powerful responsive controls.
-
-= Responsive Layout Controls =
-
-* **Stack on Mobile** - Automatically convert flex/grid layouts to vertical stacks on smaller screens
-* **Custom Breakpoints** - Choose your own breakpoint (480px, 600px, 768px, 1024px, or custom values)
-* **Stack Direction** - Control whether items stack top-to-bottom or bottom-to-top
-* **Hide on Mobile/Desktop** - Show or hide blocks based on screen size
+Core's Grid layout has no vertical alignment control. Its layout support applies `verticalAlignment` to flex layouts only — the grid branch emits `grid-template-columns` and `grid-template-rows` and never `align-items`. This plugin adds it.
 
 = Grid Vertical Alignment =
 
-WordPress forgot to add vertical alignment controls for Grid layouts. We added them for you:
+* Top, Center, Bottom, and Stretch, in the block toolbar
+* Grid layouts only; flex layouts already have this in core
+* Applied with one inline rule, no extra markup and no stylesheet
 
-* Top, Center, Bottom, and Stretch alignment options
-* Works seamlessly with WordPress core grid layouts
-* No additional markup or complexity
+= Everything else this plugin used to do is now core =
+
+WordPress 7.0 shipped per-viewport block visibility and WordPress 7.1 added configurable viewport breakpoints, so you no longer need a plugin for responsive Group behaviour. Core's implementation is better than what this plugin had:
+
+* **Hide on mobile / desktop** is now block visibility. Select a block, open the Settings panel, and set its per-viewport visibility. Core has three breakpoints where this plugin had one, and its breakpoints are configurable. It hides with `display: none !important` inside a media query — the same technique this plugin used, so the screen-reader caveat still applies: hidden content stays in the DOM and remains reachable by assistive technology in some configurations. Core does additionally set `fetchpriority="auto"` on images inside hidden blocks, which this plugin never did.
+* **Stack on mobile** is now a viewport layout override. Switch the editor to the mobile viewport and change the layout there; core stores an override for that breakpoint.
+* **Stack direction** has no core equivalent, and was removed rather than kept. Core's `orientation` accepts `horizontal` or `vertical` only — there is no reversed option anywhere in its layout support. This setting existed solely to modify stack-on-mobile, which is now core's job, and reversing visual order without reversing keyboard focus and screen reader order is a documented accessibility trap. If you need it, `flex-direction: column-reverse` in your theme's CSS does the job with the same caveat.
+* **Custom breakpoints** now live in `theme.json` under `settings.viewport`, so they are set once for the whole site instead of per block. The defaults are `@mobile` at 480px, `@tablet` between 480px and 782px, and `@desktop` above 782px.
+* **Grid stacking** needs no setting at all. A grid with a minimum column width collapses to one column on its own, because core emits `repeat(auto-fill, minmax(min(WIDTH, 100%), 1fr))`.
 
 = Developer Friendly =
 
 * Built with @wordpress/scripts
 * Uses WordPress block editor hooks and filters
-* Clean, documented code
 * Extends core blocks without replacing them
-* No jQuery or heavy dependencies
+* Editor-only JavaScript, no front-end stylesheet, no jQuery
 
 == Installation ==
 
 1. Upload the plugin files to `/wp-content/plugins/awesome-group`, or install through the WordPress plugins screen
 2. Activate the plugin through the 'Plugins' screen in WordPress
-3. Start using the new controls on your Group and Row blocks
+3. Select a Group block using a Grid layout — the vertical alignment control appears in the block toolbar
 
 == Frequently Asked Questions ==
 
@@ -57,17 +57,27 @@ No. The plugin only loads minimal CSS and uses native browser features. The Java
 
 Absolutely! This plugin extends core blocks and plays nicely with other block plugins.
 
-= Are the responsive controls accessible? =
+= What happened to the responsive controls? =
 
-Yes. The plugin respects prefers-reduced-motion, uses proper ARIA labels, and warns users that hidden content is removed from screen readers.
+WordPress 7.0 and 7.1 shipped them. See the Description above for where each one now lives, and note that reversed stack direction is the one thing core does not offer. Keeping a second, weaker implementation alongside core's would only cause the two to fight, so they were removed rather than maintained.
+
+= I upgraded and my blocks stopped stacking. What do I do? =
+
+Set the behaviour again with core's controls — per-viewport visibility for hiding, and viewport layout overrides for stacking. The old attributes stay in your post content harmlessly, but nothing reads them any more. See the Upgrade Notice for details.
 
 == Screenshots ==
 
-1. Responsive Layout controls panel
-2. Grid Alignment controls (the feature WordPress forgot!)
-3. Visual indicators in the editor
+1. Grid Alignment controls in the block toolbar
 
 == Changelog ==
+
+= 2026.08.001 =
+* Removed: stack on mobile, custom breakpoints, and hide on mobile/desktop. Core ships all of these — per-viewport block visibility in 7.0, configurable viewport breakpoints in 7.1 — and core's versions are better by being site-wide in theme.json rather than per block, with three configurable breakpoints instead of one hardcoded 768px. Core hides using `display: none !important` inside a media query, which is the same technique the removed code used, so that part is parity rather than an improvement
+* Removed: stack direction. This one has no core equivalent — core's `orientation` accepts only `horizontal` or `vertical`. It was dropped rather than kept because it existed solely to modify stack-on-mobile, and because reversing visual order without reversing keyboard focus and screen reader order is an accessibility trap. Theme CSS can do it with `flex-direction: column-reverse` if it is genuinely wanted
+* Removed: the front-end stylesheet, which existed only for the features above. The remaining feature emits a single inline rule
+* Fixed: the custom breakpoint control never worked. It stored a value and rendered `--ag-breakpoint`, but media queries cannot read custom properties, so stacking always triggered at a hardcoded 768px no matter what was set. Rather than build per-block generated media queries to fix it, the control is gone and theme.json `settings.viewport` does the job properly
+* Changed: minimum WordPress version raised to 7.1, since the migration path depends on theme.json `settings.viewport`, which is 7.1. Raising the floor also stops this update reaching sites that could not perform the migration
+* Kept: grid vertical alignment, which core still does not provide — its layout support applies verticalAlignment to flex layouts only
 
 = 2026.07.001 =
 * Fixed potential fatal error when block markup supplies a non-string breakpoint value (hardened breakpoint and alignment validation)
@@ -119,6 +129,9 @@ Yes. The plugin respects prefers-reduced-motion, uses proper ARIA labels, and wa
 * Full accessibility support
 
 == Upgrade Notice ==
+
+= 2026.08.001 =
+Breaking change. Stack on mobile, custom breakpoints, and hide on mobile/desktop have been removed because WordPress now does all of them, better. Stack direction (reverse) has no core equivalent and was dropped as an accessibility trap rather than migrated. Blocks using those settings will stop behaving responsively until you set them again with core's controls: per-viewport visibility for hiding, viewport layout overrides for stacking, and theme.json `settings.viewport` for breakpoints. The old attributes remain in your post content and are harmless, but nothing reads them. Grid vertical alignment is unchanged and still works. Requires WordPress 7.1 or later.
 
 = 2026.02.10 =
 Grid vertical alignment now accessible in block toolbar. Decorative borders significantly improved with smoother waves, better positioning, and working left/right borders.

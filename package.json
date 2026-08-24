@@ -1,7 +1,7 @@
 {
 	"name": "awesome-group",
-	"version": "2026.07.001",
-	"description": "WordPress plugin that extends the Group block with responsive layout controls",
+	"version": "2026.08.001",
+	"description": "WordPress plugin that adds the vertical alignment control core's Grid layout is missing on Group blocks",
 	"files": [
 		"build",
 		"src",
