@@ -15,7 +15,7 @@
 	.ag-stack-mobile.is-layout-grid,
 	.ag-stack-mobile.wp-block-group-is-layout-grid,
 	.ag-stack-mobile[class*="wp-container-core-group-is-layout"] {
-		display: flex !important;
+		display: flex;
 		flex-direction: var(--ag-stack-direction, column) !important;
 		flex-wrap: wrap !important;
 		grid-template-columns: unset !important;
@@ -46,7 +46,7 @@
 	/* Awesome Squiggle separators - center the SVG and give proper height */
 	.ag-stack-mobile > .wp-block-separator.awesome-squiggle-wave,
 	.ag-stack-mobile > .wp-block-separator.awesome-squiggle-zigzag {
-		display: flex !important;
+		display: flex;
 		align-items: center !important;
 		justify-content: center !important;
 		min-height: 100px !important;

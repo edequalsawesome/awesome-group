@@ -1,231 +1,173 @@
-/**
- * Awesome Group - Responsive layout controls for Group blocks
- */
-
+/** Group grid alignment, viewport reversal, and custom stacking. */
 import { addFilter } from '@wordpress/hooks';
-import { createHigherOrderComponent } from '@wordpress/compose';
+import { createHigherOrderComponent, useInstanceId } from '@wordpress/compose';
 import {
-	InspectorControls,
 	BlockControls,
 	BlockVerticalAlignmentControl,
+	InspectorControls,
 } from '@wordpress/block-editor';
-import { Fragment, useEffect } from '@wordpress/element';
-import {
-	PanelBody,
-	ToggleControl,
-	SelectControl,
-	// eslint-disable-next-line @wordpress/no-unsafe-wp-apis -- no stable UnitControl exists yet; revisit when it graduates.
-	__experimentalUnitControl as UnitControl,
-} from '@wordpress/components';
-import { __ } from '@wordpress/i18n';
-
-import './style.css';
-import './editor.css';
+import { Notice, PanelBody, ToggleControl } from '@wordpress/components';
+import { __, sprintf } from '@wordpress/i18n';
+import './custom-stacking';
 
 /**
- * Supported blocks for responsive controls.
- * Row and Stack are layout variations of core/group, not separate block
- * types, so core/group alone covers Group, Row, and Stack.
+ * Row and Stack are layout variations of core/group, not separate block types,
+ * so core/group alone covers Group, Row, and Stack.
  */
 const SUPPORTED_BLOCKS = [ 'core/group' ];
 
 /**
- * Supported blocks for grid alignment (Grid layout is missing vertical alignment!)
+ * Core's viewport names, supplied by PHP from the same call the front end uses.
+ *
+ * ponytail: the literal list below is a fallback for one case only — the inline
+ * script not printing (CSP, load-order edge). It is not the source of truth and
+ * must not be treated as one. If PHP's supported set is narrower, a toggle here
+ * can be checked but produces no CSS: awesome_group_reverse_viewports() filters
+ * against PHP's list, so the result is an inert toggle, not wrong output.
+ * Revisit if core ever gains a fourth viewport.
  */
-const GRID_ALIGNMENT_BLOCKS = [ 'core/group' ];
+const VIEWPORTS = window.awesomeGroupViewports ?? [
+	'mobile',
+	'tablet',
+	'desktop',
+];
 
-const DEFAULT_BREAKPOINT = '768px';
-const PHP_TRIM_CHARACTERS = /^[ \t\n\r\u0000\u000B]+|[ \t\n\r\u0000\u000B]+$/g;
-const BREAKPOINT_PATTERN = /^(\d+(?:\.\d+)?)(px|em|rem)$/;
-const stackCssTemplate =
-	typeof window === 'undefined' ? '' : window.awesomeGroupStackCss || '';
+/** Viewport name to its editor label. */
+const VIEWPORT_LABELS = {
+	mobile: __( 'Mobile', 'awesome-group' ),
+	tablet: __( 'Tablet', 'awesome-group' ),
+	desktop: __( 'Desktop', 'awesome-group' ),
+};
 
 /**
- * Normalize saved breakpoint values exactly as the frontend does.
+ * Is this block a column at the given viewport?
  *
- * @param {*} breakpoint Candidate saved attribute value.
- * @return {string} A valid CSS breakpoint or the default.
+ * Mirrors awesome_group_is_column_at_viewport() in PHP. Core writes viewport
+ * layout overrides to style['@{viewport}'].layout, and emits no flex-direction
+ * at all for horizontal flex — so reversing a still-horizontal row needs
+ * row-reverse, and reversing a stacked one needs column-reverse.
+ *
+ * @param {Object} attributes Block attributes.
+ * @param {string} viewport   Viewport name.
+ * @return {boolean} True when the block is a column at that width.
  */
-export function sanitizeBreakpoint( breakpoint ) {
-	if ( typeof breakpoint !== 'string' || /[^\x00-\x7F]/.test( breakpoint ) ) {
-		return DEFAULT_BREAKPOINT;
-	}
+function isColumnAtViewport( attributes, viewport ) {
+	// Desktop always uses the base orientation: core's layout support omits
+	// include_desktop, so it never renders a @desktop layout override, and
+	// honouring one here would disagree with what actually ships.
+	const override =
+		viewport === 'desktop'
+			? undefined
+			: attributes?.style?.[ `@${ viewport }` ]?.layout;
 
-	const normalized = breakpoint
-		.replace( PHP_TRIM_CHARACTERS, '' )
-		.toLowerCase();
-	const match = BREAKPOINT_PATTERN.exec( normalized );
-	const number = match ? Number( match[ 1 ] ) : Number.NaN;
-
+	// typeof guard: `in` throws on a non-object, and a crafted block comment
+	// can set layout to a string. PHP falls back to base here, so without this
+	// the editor would crash where the front end quietly renders.
 	if (
-		normalized.length > 64 ||
-		! match ||
-		! Number.isFinite( number ) ||
-		number <= 0
+		override &&
+		typeof override === 'object' &&
+		'orientation' in override
 	) {
-		return DEFAULT_BREAKPOINT;
+		return override.orientation === 'vertical';
 	}
 
-	return normalized;
+	return ( attributes?.layout?.orientation ?? 'horizontal' ) === 'vertical';
 }
 
 /**
- * Scope the shipped stack stylesheet to one editor block.
+ * The viewports a block reverses at, ignoring anything core does not define.
  *
- * @param {string} template   Localized stack stylesheet.
- * @param {string} breakpoint Validated breakpoint.
- * @param {string} className  Trusted editor-only class.
- * @return {string} Scoped stylesheet.
+ * @param {Object} attributes Block attributes.
+ * @return {string[]} Viewport names.
  */
-export function buildStackCss( template, breakpoint, className ) {
-	if ( ! template || ! className ) {
-		return '';
+function reverseViewports( attributes ) {
+	const requested = attributes?.awesomeReverseViewports;
+
+	if ( ! Array.isArray( requested ) ) {
+		return [];
 	}
 
-	return template
-		.replace( '(max-width: 768px)', `(max-width: ${ breakpoint })` )
-		.split( '.ag-stack-mobile' )
-		.join( `.${ className }.ag-stack-mobile` );
+	return VIEWPORTS.filter( ( viewport ) => requested.includes( viewport ) );
 }
 
-export function ResponsiveStackStyle( { clientId, css } ) {
-	useEffect( () => {
-		if ( ! clientId || ! css || typeof document === 'undefined' ) {
-			return undefined;
-		}
-
-		const blockId = `block-${ clientId }`;
-		const documents = [ document ];
-
-		document.querySelectorAll( 'iframe' ).forEach( ( iframe ) => {
-			try {
-				if ( iframe.contentDocument ) {
-					documents.push( iframe.contentDocument );
-				}
-			} catch ( error ) {
-				// Cross-origin frames cannot contain this editor block.
-			}
-		} );
-
-		const wrapper = documents
-			.map( ( ownerDocument ) => ownerDocument.getElementById( blockId ) )
-			.find( Boolean );
-
-		if ( ! wrapper || ! wrapper.ownerDocument.head ) {
-			return undefined;
-		}
-
-		const style = wrapper.ownerDocument.createElement( 'style' );
-		style.textContent = css;
-		wrapper.ownerDocument.head.appendChild( style );
-
-		return () => {
-			style.parentNode?.removeChild( style );
-		};
-	}, [ clientId, css ] );
-
-	return null;
-}
+/** Editor alignment keyword to its CSS align-items value. */
+const ALIGN_MAP = {
+	top: 'start',
+	center: 'center',
+	bottom: 'end',
+	stretch: 'stretch',
+};
 
 /**
- * Add custom attributes to supported blocks
+ * Register the alignment attribute on supported blocks.
+ *
  * @param {Object} settings Block settings being filtered.
  * @param {string} name     Block name.
  * @return {Object} Filtered block settings.
  */
-function addResponsiveAttributes( settings, name ) {
-	// Responsive layout attributes (Group + Row)
-	if ( SUPPORTED_BLOCKS.includes( name ) ) {
-		settings = {
-			...settings,
-			attributes: {
-				...settings.attributes,
-				awesomeStackOnMobile: {
-					type: 'boolean',
-					default: false,
-				},
-				awesomeMobileBreakpoint: {
-					type: 'string',
-					default: '768px',
-				},
-				awesomeStackDirection: {
-					type: 'string',
-					default: 'column',
-				},
-				awesomeHideOnMobile: {
-					type: 'boolean',
-					default: false,
-				},
-				awesomeHideOnDesktop: {
-					type: 'boolean',
-					default: false,
-				},
-			},
-		};
+function addGridAlignmentAttribute( settings, name ) {
+	if ( ! SUPPORTED_BLOCKS.includes( name ) ) {
+		return settings;
 	}
 
-	// Grid vertical alignment (WordPress forgot to add this!)
-	if ( GRID_ALIGNMENT_BLOCKS.includes( name ) ) {
-		settings = {
-			...settings,
-			attributes: {
-				...settings.attributes,
-				awesomeGridVerticalAlignment: {
-					type: 'string',
-					default: '',
-				},
+	return {
+		...settings,
+		attributes: {
+			...settings.attributes,
+			awesomeGridVerticalAlignment: {
+				type: 'string',
+				default: '',
 			},
-		};
-	}
-
-	return settings;
+			awesomeReverseViewports: {
+				type: 'array',
+				items: { type: 'string' },
+				default: [],
+			},
+		},
+	};
 }
 
 addFilter(
 	'blocks.registerBlockType',
 	'awesome-group/add-attributes',
-	addResponsiveAttributes
+	addGridAlignmentAttribute
 );
 
 /**
- * Add inspector controls for responsive settings
+ * Add the toolbar control, for grid layouts only.
  */
-const withResponsiveControls = createHigherOrderComponent( ( BlockEdit ) => {
+const withGroupGapControls = createHigherOrderComponent( ( BlockEdit ) => {
 	return ( props ) => {
 		const { name, attributes, setAttributes } = props;
 
-		const showResponsiveControls = SUPPORTED_BLOCKS.includes( name );
-		const showGridAlignmentControls =
-			GRID_ALIGNMENT_BLOCKS.includes( name );
+		// The warning used to live in ToggleControl's `help` prop, which wires
+		// aria-describedby automatically. Moving it into a Notice for visual
+		// weight silently dropped that: a screen reader user tabbing straight
+		// to a toggle heard only its label. Re-associate it explicitly.
+		const warningId = useInstanceId(
+			withGroupGapControls,
+			'awesome-group-reverse-warning'
+		);
 
-		if ( ! showResponsiveControls && ! showGridAlignmentControls ) {
+		if ( ! SUPPORTED_BLOCKS.includes( name ) ) {
 			return <BlockEdit { ...props } />;
 		}
 
-		const {
-			awesomeStackOnMobile,
-			awesomeMobileBreakpoint,
-			awesomeStackDirection,
-			awesomeHideOnMobile,
-			awesomeHideOnDesktop,
-			awesomeGridVerticalAlignment,
-		} = attributes;
+		const layoutType = attributes.layout?.type;
+		const isGrid = layoutType === 'grid';
+		const isFlex = layoutType === 'flex';
 
-		// Only show stack controls for flex/grid layouts
-		const layout = attributes.layout || {};
-		const showStackControls =
-			layout.type === 'flex' || layout.type === 'grid';
-
-		// Only show grid alignment for grid layouts
-		const isGridLayout = layout.type === 'grid';
+		if ( ! isGrid && ! isFlex ) {
+			return <BlockEdit { ...props } />;
+		}
 
 		return (
 			<>
 				<BlockEdit { ...props } />
-				{ showGridAlignmentControls && isGridLayout && (
+				{ isGrid && (
 					<BlockControls group="block">
 						<BlockVerticalAlignmentControl
-							value={ awesomeGridVerticalAlignment }
+							value={ attributes.awesomeGridVerticalAlignment }
 							onChange={ ( alignment ) =>
 								setAttributes( {
 									awesomeGridVerticalAlignment: alignment,
@@ -240,264 +182,133 @@ const withResponsiveControls = createHigherOrderComponent( ( BlockEdit ) => {
 						/>
 					</BlockControls>
 				) }
-				<InspectorControls>
-					{ showResponsiveControls && (
+				{ isFlex && (
+					<InspectorControls>
 						<PanelBody
-							title={ __( 'Responsive Layout', 'awesome-group' ) }
+							title={ __( 'Responsive Order', 'awesome-group' ) }
 							initialOpen={ false }
 						>
-							{ showStackControls && (
-								<>
-									<ToggleControl
-										label={ __(
-											'Stack on mobile',
-											'awesome-group'
-										) }
-										help={ __(
-											'Stack items vertically on smaller screens',
-											'awesome-group'
-										) }
-										checked={ awesomeStackOnMobile }
-										onChange={ ( value ) =>
-											setAttributes( {
-												awesomeStackOnMobile: value,
-											} )
-										}
-									/>
-
-									{ awesomeStackOnMobile && (
-										<>
-											<UnitControl
-												label={ __(
-													'Breakpoint',
-													'awesome-group'
-												) }
-												value={
-													awesomeMobileBreakpoint
-												}
-												onChange={ ( value ) =>
-													setAttributes( {
-														awesomeMobileBreakpoint:
-															value,
-													} )
-												}
-												units={ [
-													{
-														value: 'px',
-														label: 'px',
-													},
-													{
-														value: 'em',
-														label: 'em',
-													},
-													{
-														value: 'rem',
-														label: 'rem',
-													},
-												] }
-											/>
-
-											<SelectControl
-												label={ __(
-													'Stack direction',
-													'awesome-group'
-												) }
-												value={ awesomeStackDirection }
-												help={
-													awesomeStackDirection ===
-													'column-reverse'
-														? __(
-																'Warning: Reverse order changes visual order but not keyboard focus order or screen reader reading order.',
-																'awesome-group'
-														  )
-														: ''
-												}
-												options={ [
-													{
-														label: __(
-															'Column (top to bottom)',
-															'awesome-group'
-														),
-														value: 'column',
-													},
-													{
-														label: __(
-															'Column reverse (bottom to top)',
-															'awesome-group'
-														),
-														value: 'column-reverse',
-													},
-												] }
-												onChange={ ( value ) =>
-													setAttributes( {
-														awesomeStackDirection:
-															value,
-													} )
-												}
-											/>
-										</>
+							<Notice status="warning" isDismissible={ false }>
+								<span id={ warningId }>
+									{ __(
+										'Reversing changes visual order only. Keyboard focus order and screen reader reading order stay as written, so the two will disagree — which matters most when the block contains links, buttons, or form fields. Reorder the blocks themselves if the sequence genuinely matters.',
+										'awesome-group'
 									) }
-								</>
-							) }
+								</span>
+							</Notice>
+							{ VIEWPORTS.map( ( viewport ) => {
+								const active =
+									reverseViewports( attributes ).includes(
+										viewport
+									);
 
-							<ToggleControl
-								label={ __(
-									'Hide on mobile',
-									'awesome-group'
-								) }
-								help={ __(
-									'Completely hides this block on mobile. Note: Hidden content is also removed from screen readers.',
-									'awesome-group'
-								) }
-								checked={ awesomeHideOnMobile }
-								onChange={ ( value ) =>
-									setAttributes( {
-										awesomeHideOnMobile: value,
-									} )
-								}
-							/>
-
-							<ToggleControl
-								label={ __(
-									'Hide on desktop',
-									'awesome-group'
-								) }
-								help={ __(
-									'Completely hides this block on desktop. Note: Hidden content is also removed from screen readers.',
-									'awesome-group'
-								) }
-								checked={ awesomeHideOnDesktop }
-								onChange={ ( value ) =>
-									setAttributes( {
-										awesomeHideOnDesktop: value,
-									} )
-								}
-							/>
+								return (
+									<ToggleControl
+										key={ viewport }
+										aria-describedby={ warningId }
+										label={ sprintf(
+											/* translators: %s: viewport name, e.g. Mobile. */
+											__(
+												'Reverse order on %s',
+												'awesome-group'
+											),
+											VIEWPORT_LABELS[ viewport ] ??
+												viewport
+										) }
+										checked={ active }
+										onChange={ ( value ) => {
+											const current =
+												reverseViewports( attributes );
+											const next = VIEWPORTS.filter(
+												( candidate ) =>
+													candidate === viewport
+														? value
+														: current.includes(
+																candidate
+														  )
+											);
+											setAttributes( {
+												awesomeReverseViewports: next,
+											} );
+										} }
+									/>
+								);
+							} ) }
 						</PanelBody>
-					) }
-				</InspectorControls>
+					</InspectorControls>
+				) }
 			</>
 		);
 	};
-}, 'withResponsiveControls' );
+}, 'withGroupGapControls' );
 
 addFilter(
 	'editor.BlockEdit',
-	'awesome-group/with-responsive-controls',
-	withResponsiveControls
+	'awesome-group/with-group-controls',
+	withGroupGapControls
 );
 
 /**
- * Add custom classes and styles in the editor
+ * Mirror the alignment in the editor canvas.
  */
-const withResponsiveClasses = createHigherOrderComponent(
+const withGridAlignmentStyle = createHigherOrderComponent(
 	( BlockListBlock ) => {
 		return ( props ) => {
 			const { name, attributes } = props;
 
-			const isSupported = SUPPORTED_BLOCKS.includes( name );
-			const isGridAlignmentSupported =
-				GRID_ALIGNMENT_BLOCKS.includes( name );
-
-			if ( ! isSupported && ! isGridAlignmentSupported ) {
+			if ( ! SUPPORTED_BLOCKS.includes( name ) ) {
 				return <BlockListBlock { ...props } />;
 			}
 
-			const {
-				awesomeStackOnMobile,
-				awesomeMobileBreakpoint,
-				awesomeHideOnMobile,
-				awesomeHideOnDesktop,
-				awesomeStackDirection,
-				awesomeGridVerticalAlignment,
-				layout,
-			} = attributes;
+			const layoutType = attributes.layout?.type;
+			const alignValue =
+				layoutType === 'grid'
+					? ALIGN_MAP[ attributes.awesomeGridVerticalAlignment ]
+					: undefined;
+			const reversed =
+				layoutType === 'flex' ? reverseViewports( attributes ) : [];
 
-			const sanitizedClientId = String( props.clientId || '' ).replace(
-				/[^A-Za-z0-9_-]/g,
-				''
-			);
-			const editorClass = awesomeStackOnMobile
-				? `ag-editor-${ sanitizedClientId || 'block' }`
-				: '';
-			let stackCss = '';
-			if ( awesomeStackOnMobile ) {
-				stackCss = buildStackCss(
-					stackCssTemplate,
-					sanitizeBreakpoint( awesomeMobileBreakpoint ),
-					editorClass
-				);
+			if ( ! alignValue && ! reversed.length ) {
+				return <BlockListBlock { ...props } />;
 			}
+
 			let wrapperProps = props.wrapperProps || {};
-			if ( awesomeStackOnMobile ) {
+
+			if ( alignValue ) {
 				wrapperProps = {
 					...wrapperProps,
-					style: {
-						...wrapperProps.style,
-						'--ag-stack-direction':
-							awesomeStackDirection === 'column-reverse'
-								? 'column-reverse'
-								: 'column',
-					},
+					style: { ...wrapperProps.style, alignItems: alignValue },
 				};
 			}
 
-			const className = [
-				props.className,
-				awesomeStackOnMobile && 'ag-stack-mobile',
-				editorClass,
-				awesomeHideOnMobile && 'ag-hide-mobile',
-				awesomeHideOnDesktop && 'ag-hide-desktop',
-			]
+			// A media query cannot live in an inline style, so the reverse
+			// preview rides classes the plugin's canvas CSS targets. Which
+			// class depends on the axis the block has at that width, decided
+			// by the same rule the front end uses.
+			const reverseClasses = reversed.map( ( viewport ) =>
+				isColumnAtViewport( attributes, viewport )
+					? `ag-rev-${ viewport }-column`
+					: `ag-rev-${ viewport }-row`
+			);
+
+			const className = [ props.className, ...reverseClasses ]
 				.filter( Boolean )
 				.join( ' ' );
 
-			// Grid vertical alignment in editor
-			if (
-				isGridAlignmentSupported &&
-				layout?.type === 'grid' &&
-				awesomeGridVerticalAlignment
-			) {
-				const alignMap = {
-					top: 'start',
-					center: 'center',
-					bottom: 'end',
-					stretch: 'stretch',
-				};
-				const alignValue = alignMap[ awesomeGridVerticalAlignment ];
-				if ( alignValue ) {
-					wrapperProps = {
-						...wrapperProps,
-						style: {
-							...wrapperProps.style,
-							alignItems: alignValue,
-						},
-					};
-				}
-			}
-
 			return (
-				<Fragment>
-					<BlockListBlock
-						{ ...props }
-						className={ className }
-						wrapperProps={ wrapperProps }
-					/>
-					{ awesomeStackOnMobile && (
-						<ResponsiveStackStyle
-							clientId={ props.clientId }
-							css={ stackCss }
-						/>
-					) }
-				</Fragment>
+				<BlockListBlock
+					{ ...props }
+					className={ className }
+					wrapperProps={ wrapperProps }
+				/>
 			);
 		};
 	},
-	'withResponsiveClasses'
+	'withGridAlignmentStyle'
 );
 
 addFilter(
 	'editor.BlockListBlock',
-	'awesome-group/with-responsive-classes',
-	withResponsiveClasses
+	'awesome-group/with-group-styles',
+	withGridAlignmentStyle
 );

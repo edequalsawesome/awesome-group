@@ -21,7 +21,7 @@ import {
 	buildStackCss,
 	ResponsiveStackStyle,
 	sanitizeBreakpoint,
-} from '../index';
+} from '../custom-stacking';
 
 const template = `@media screen and (max-width: 768px) {
 \t.ag-stack-mobile.is-layout-flex { flex-direction: var(--ag-stack-direction, column); }

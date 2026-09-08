@@ -1,73 +1,63 @@
 === Awesome Group ===
 Contributors: edequalsawesome
-Tags: blocks, group, responsive, layout
-Requires at least: 6.4
-Tested up to: 6.7
+Tags: blocks, group, grid, layout, alignment
+Requires at least: 7.1
+Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2026.07.001
+Stable tag: 2026.08.001
 License: GPL-3.0
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
-Extends the Group and Row blocks with responsive layout controls and grid vertical alignment.
+
+Grid alignment, viewport reversal, and custom stacking breakpoints for Group blocks.
 
 == Description ==
 
-Awesome Group supercharges WordPress core Group and Row blocks with powerful responsive controls.
-
-= Responsive Layout Controls =
-
-* **Stack on Mobile** - Automatically convert flex/grid layouts to vertical stacks on smaller screens
-* **Custom Breakpoints** - Choose your own breakpoint (480px, 600px, 768px, 1024px, or custom values)
-* **Stack Direction** - Control whether items stack top-to-bottom or bottom-to-top
-* **Hide on Mobile/Desktop** - Show or hide blocks based on screen size
-
 = Grid Vertical Alignment =
 
-WordPress forgot to add vertical alignment controls for Grid layouts. We added them for you:
+Top, Center, Bottom, and Stretch in the toolbar for Grid layouts. Flex alignment is provided by core.
 
-* Top, Center, Bottom, and Stretch alignment options
-* Works seamlessly with WordPress core grid layouts
-* No additional markup or complexity
+= Responsive Order =
 
-= Developer Friendly =
+Reverse flex items at any of core's Mobile, Tablet, or Desktop viewports. Rows reverse horizontally and columns reverse vertically. The breakpoints come from theme.json settings.viewport; Desktop follows the base layout orientation.
 
-* Built with @wordpress/scripts
-* Uses WordPress block editor hooks and filters
-* Clean, documented code
-* Extends core blocks without replacing them
-* No jQuery or heavy dependencies
+= Custom Stacking =
+
+Stack a flex or grid Group at its own breakpoint in px, em, or rem, in normal or reversed order. Custom stacking overrides viewport layout and reversal within that width and stretches grid children to full width. Above it, the existing layout and viewport settings apply. Nested Groups keep independent breakpoints and directions. Editor and frontend use the same validated media rules.
+
+Reversing changes visual order only. Keyboard and screen reader order stay as authored. Reorder the blocks when the reading sequence matters.
+
+Use core's visibility controls for hiding and core's viewport layout controls for site-wide responsive layouts. Custom Stacking is for a breakpoint on one block.
 
 == Installation ==
 
-1. Upload the plugin files to `/wp-content/plugins/awesome-group`, or install through the WordPress plugins screen
-2. Activate the plugin through the 'Plugins' screen in WordPress
-3. Start using the new controls on your Group and Row blocks
+1. Upload awesome-group to wp-content/plugins and activate it.
+2. Select a Group with a Grid layout for toolbar alignment.
+3. Use Responsive Order for flex reversal, or Custom Stacking for a per-block breakpoint.
 
 == Frequently Asked Questions ==
 
-= Does this work with any theme? =
+= Are existing stacking settings preserved? =
 
-Yes! This plugin extends core WordPress blocks and works with any block-enabled theme.
+Yes. Existing stacking, direction, and custom breakpoint attributes are supported. Breakpoints now work; invalid values fall back to 768px.
 
-= Will this slow down my site? =
+= What happened to hide-on-mobile/desktop? =
 
-No. The plugin only loads minimal CSS and uses native browser features. The JavaScript only runs in the block editor.
+Those controls remain removed in favor of core visibility. Old hide attributes no longer affect output and may be dropped when the post is edited. The old blue indicators are also removed; the inspector shows whether custom stacking is enabled.
 
-= Can I use this with other block plugins? =
+= Does this load a stylesheet everywhere? =
 
-Absolutely! This plugin extends core blocks and plays nicely with other block plugins.
-
-= Are the responsive controls accessible? =
-
-Yes. The plugin respects prefers-reduced-motion, uses proper ARIA labels, and warns users that hidden content is removed from screen readers.
-
-== Screenshots ==
-
-1. Responsive Layout controls panel
-2. Grid Alignment controls (the feature WordPress forgot!)
-3. Visual indicators in the editor
+No. Frontend styles are generated for blocks using these features. The shared stacking template is read once per request. JavaScript runs in the editor only.
 
 == Changelog ==
+
+= 2026.08.001 =
+* Added per-viewport Reverse Order controls using core's viewport settings and style engine.
+* Fixed per-block custom stacking breakpoints in the editor and frontend; preserves existing stacking attributes and directions.
+* Kept Grid vertical alignment, including Stretch.
+* Removed legacy hide-on-mobile/desktop controls and blue indicators; use core visibility controls.
+* Raised the minimum WordPress version to 7.1 for core viewport settings.
+* Added breakpoint validation, scoped-style lifecycle, and frontend regression checks. Excluded source tests from the plugin ZIP.
 
 = 2026.07.001 =
 * Fixed potential fatal error when block markup supplies a non-string breakpoint value (hardened breakpoint and alignment validation)
@@ -120,8 +110,5 @@ Yes. The plugin respects prefers-reduced-motion, uses proper ARIA labels, and wa
 
 == Upgrade Notice ==
 
-= 2026.02.10 =
-Grid vertical alignment now accessible in block toolbar. Decorative borders significantly improved with smoother waves, better positioning, and working left/right borders.
-
-= 1.0.0 =
-Initial release of Awesome Group.
+= 2026.08.001 =
+Requires WordPress 7.1. Existing custom stacking settings now work and remain supported. Per-viewport reversal and grid alignment are retained. Migrate old hide-on-mobile/desktop settings to core visibility before editing affected posts; those legacy hide attributes are no longer registered.
