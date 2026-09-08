@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       Awesome Group
- * Description:       Fills two gaps core leaves on Group blocks: vertical alignment on Grid layouts, and reversed order at any viewport.
+ * Description:       Grid alignment, viewport reversal, and custom stacking breakpoints for Group blocks.
  * Requires at least: 7.1
  * Requires PHP:      7.4
  * Version:           2026.08.001
@@ -19,6 +19,83 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'AWESOME_GROUP_VERSION', '2026.08.001' );
 define( 'AWESOME_GROUP_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AWESOME_GROUP_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+
+/**
+ * Read the shared stacking stylesheet once per request.
+ *
+ * @return string The shipped CSS template, or an empty string when unavailable.
+ */
+function awesome_group_get_stack_css_template() {
+	static $template = null;
+
+	if ( null === $template ) {
+		$path = AWESOME_GROUP_PLUGIN_DIR . 'src/stack.css';
+		$template = is_readable( $path ) ? file_get_contents( $path ) : '';
+		$template = false === $template ? '' : $template;
+	}
+
+	return $template;
+}
+
+/**
+ * Build one trusted, block-scoped copy of the stacking stylesheet.
+ *
+ * @param string $breakpoint Sanitized breakpoint.
+ * @param string $unique_id  Internally generated class name.
+ * @param string $direction  Allowlisted flex direction.
+ * @return string CSS ready for a style element, or an empty string.
+ */
+function awesome_group_build_stack_css( $breakpoint, $unique_id, $direction ) {
+	$template = awesome_group_get_stack_css_template();
+	$breakpoint = awesome_group_sanitize_breakpoint( $breakpoint );
+	$unique_id = preg_replace( '/[^A-Za-z0-9_-]/', '', $unique_id );
+	$direction = in_array( $direction, array( 'column', 'column-reverse' ), true ) ? $direction : 'column';
+
+	if ( '' === $template || '' === $unique_id ) {
+		return '';
+	}
+
+	$css = str_replace(
+		array( '(max-width: 768px)', '.ag-stack-mobile' ),
+		array( '(max-width: ' . $breakpoint . ')', '.' . $unique_id . '.ag-stack-mobile' ),
+		$template
+	);
+
+	return sprintf(
+		'@media screen and (max-width: %1$s) { .%2$s.ag-stack-mobile { --ag-stack-direction: %3$s; } }' . "\n" . '%4$s',
+		$breakpoint,
+		$unique_id,
+		$direction,
+		$css
+	);
+}
+
+/**
+ * Validate and sanitize a CSS breakpoint value.
+ *
+ * @param string $breakpoint The breakpoint value to validate.
+ * @return string Sanitized breakpoint or default if invalid.
+ */
+function awesome_group_sanitize_breakpoint( $breakpoint ) {
+	$default = '768px';
+
+	// Block attribute JSON is not type-enforced server-side: a crafted block
+	// comment can supply an array/object here, which would fatal in preg_match.
+	if ( ! is_string( $breakpoint ) || preg_match( '/[^\x00-\x7F]/', $breakpoint ) ) {
+		return $default;
+	}
+
+	$breakpoint = strtolower( trim( $breakpoint, " \t\n\r\0\x0B" ) );
+
+	// Must be a number followed by px, em, or rem ('D' so '$' can't match before a trailing newline)
+	$number = (float) $breakpoint;
+	if ( strlen( $breakpoint ) <= 64 && preg_match( '/^\d+(\.\d+)?(px|em|rem)$/D', $breakpoint ) && is_finite( $number ) && $number > 0 ) {
+		return $breakpoint;
+	}
+
+	return $default;
+}
+
 
 /**
  * Get cached asset data to avoid multiple file_exists + include calls per request.
@@ -39,8 +116,7 @@ function awesome_group_get_asset_data() {
 /**
  * Enqueue block editor assets.
  *
- * Editor-only: the single remaining feature renders through an inline style
- * on the front end, so there is no stylesheet to enqueue there.
+ * Frontend rules are generated for the blocks that need them.
  */
 function awesome_group_enqueue_editor_assets() {
 	$asset = awesome_group_get_asset_data();
@@ -55,6 +131,12 @@ function awesome_group_enqueue_editor_assets() {
 		$asset['dependencies'],
 		$asset['version'],
 		true
+	);
+
+	wp_add_inline_script(
+		'awesome-group-editor',
+		'window.awesomeGroupStackCss = ' . wp_json_encode( awesome_group_get_stack_css_template(), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT ) . ';',
+		'before'
 	);
 
 	// The editor never hardcodes the viewport list; it comes from the same
@@ -243,6 +325,10 @@ function awesome_group_register_attributes() {
 	// Core's flex `orientation` accepts horizontal or vertical only — there is
 	// no reversed option anywhere in its layout support, so a viewport override
 	// cannot express this. Stored as a list of core's own viewport names.
+	$block_type->attributes['awesomeStackOnMobile'] = array( 'type' => 'boolean', 'default' => false );
+	$block_type->attributes['awesomeMobileBreakpoint'] = array( 'type' => 'string', 'default' => '768px' );
+	$block_type->attributes['awesomeStackDirection'] = array( 'type' => 'string', 'default' => 'column' );
+
 	$block_type->attributes['awesomeReverseViewports'] = array(
 		'type'    => 'array',
 		'items'   => array( 'type' => 'string' ),
@@ -378,3 +464,36 @@ function awesome_group_render_block( $block_content, $block ) {
 	return $processor->get_updated_html();
 }
 add_filter( 'render_block', 'awesome_group_render_block', 10, 2 );
+
+/**
+ * Apply per-block custom stacking after the viewport and alignment filter.
+ *
+ * @param string $block_content Rendered block markup.
+ * @param array  $block Parsed block.
+ * @return string Markup with scoped stacking rules when enabled.
+ */
+function awesome_group_render_custom_stack( $block_content, $block ) {
+	if ( 'core/group' !== ( $block['blockName'] ?? '' ) ) {
+		return $block_content;
+	}
+	$attrs = $block['attrs'] ?? array();
+	$layout = $attrs['layout'] ?? array();
+	if ( true !== ( $attrs['awesomeStackOnMobile'] ?? false ) || ! is_array( $layout ) || ! in_array( $layout['type'] ?? '', array( 'flex', 'grid' ), true ) ) {
+		return $block_content;
+	}
+	$unique_id = 'ag-stack-' . wp_unique_id();
+	$css = awesome_group_build_stack_css(
+		$attrs['awesomeMobileBreakpoint'] ?? '768px',
+		$unique_id,
+		$attrs['awesomeStackDirection'] ?? 'column'
+	);
+	$processor = new WP_HTML_Tag_Processor( $block_content );
+	if ( '' === $css || ! $processor->next_tag() ) {
+		return $block_content;
+	}
+	$processor->add_class( $unique_id );
+	$processor->add_class( 'ag-stack-mobile' );
+	return $processor->get_updated_html() . '<style>' . $css . '</style>';
+}
+// Run after the priority-10 filter so its alignment and reverse classes survive.
+add_filter( 'render_block', 'awesome_group_render_custom_stack', 20, 2 );

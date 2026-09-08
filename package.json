@@ -1,10 +1,11 @@
 {
 	"name": "awesome-group",
 	"version": "2026.08.001",
-	"description": "WordPress plugin that fills two gaps core leaves on Group blocks: vertical alignment on Grid layouts, and reversed order at any of core's viewports",
+	"description": "Grid alignment, viewport reversal, and custom stacking breakpoints for Group blocks",
 	"files": [
 		"build",
 		"src",
+		"!src/__tests__/**",
 		"awesome-group.php",
 		"readme.txt"
 	],
@@ -14,7 +15,9 @@
 		"start": "wp-scripts start",
 		"format": "wp-scripts format",
 		"lint:js": "wp-scripts lint-js",
-		"plugin-zip": "wp-scripts plugin-zip"
+		"plugin-zip": "wp-scripts plugin-zip",
+		"test:unit": "wp-scripts test-unit-js",
+		"lint:css": "wp-scripts lint-style"
 	},
 	"devDependencies": {
 		"@wordpress/block-editor": "^11.0.0",
@@ -23,6 +26,7 @@
 		"@wordpress/compose": "^6.0.0",
 		"@wordpress/hooks": "^3.0.0",
 		"@wordpress/i18n": "^4.0.0",
-		"@wordpress/scripts": "^30.17.0"
+		"@wordpress/scripts": "^30.17.0",
+		"@wordpress/element": "5.35.0"
 	}
 }

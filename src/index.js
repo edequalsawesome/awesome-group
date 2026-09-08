@@ -1,31 +1,4 @@
-/**
- * Awesome Group - fills the gaps core leaves on Group blocks
- *
- * Almost everything else this plugin used to do is now core. WordPress 7.0
- * shipped per-viewport block visibility (block-supports/block-visibility.php)
- * and viewport layout overrides, with breakpoints configurable in theme.json
- * under settings.viewport (WP 7.1). Core's implementation beats what was here
- * by being site-wide rather than per-block, with three configurable breakpoints
- * instead of one hardcoded 768px. It hides the same way the removed code did,
- * with `display: none !important` inside a media query — parity, not an
- * improvement: markup stays in the source, out of the accessibility tree.
- *
- * Two gaps remain, and they are what this plugin is now for:
- *
- * 1. Vertical alignment on a Grid layout. Core's layout support applies
- *    verticalAlignment to flex only — the grid branch emits
- *    grid-template-columns and grid-template-rows and never align-items.
- * 2. Reversed order at a viewport. Core's flex `orientation` accepts
- *    horizontal or vertical only, with no reversed option anywhere in its
- *    layout support, so a viewport override cannot express it.
- *
- * Both use core's own primitives rather than a parallel system: the reverse
- * rule is scoped to whichever of core's viewport media queries the block
- * selects, derived from theme.json settings.viewport, and both are emitted
- * through the style engine under this plugin's own context rather than core's
- * block-supports bucket.
- */
-
+/** Group grid alignment, viewport reversal, and custom stacking. */
 import { addFilter } from '@wordpress/hooks';
 import { createHigherOrderComponent, useInstanceId } from '@wordpress/compose';
 import {
@@ -35,6 +8,7 @@ import {
 } from '@wordpress/block-editor';
 import { Notice, PanelBody, ToggleControl } from '@wordpress/components';
 import { __, sprintf } from '@wordpress/i18n';
+import './custom-stacking';
 
 /**
  * Row and Stack are layout variations of core/group, not separate block types,
