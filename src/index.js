@@ -9,6 +9,7 @@ import {
 	BlockControls,
 	BlockVerticalAlignmentControl,
 } from '@wordpress/block-editor';
+import { Fragment, useEffect } from '@wordpress/element';
 import {
 	PanelBody,
 	ToggleControl,
@@ -32,6 +33,99 @@ const SUPPORTED_BLOCKS = [ 'core/group' ];
  * Supported blocks for grid alignment (Grid layout is missing vertical alignment!)
  */
 const GRID_ALIGNMENT_BLOCKS = [ 'core/group' ];
+
+const DEFAULT_BREAKPOINT = '768px';
+const PHP_TRIM_CHARACTERS = /^[ \t\n\r\u0000\u000B]+|[ \t\n\r\u0000\u000B]+$/g;
+const BREAKPOINT_PATTERN = /^(\d+(?:\.\d+)?)(px|em|rem)$/;
+const stackCssTemplate =
+	typeof window === 'undefined' ? '' : window.awesomeGroupStackCss || '';
+
+/**
+ * Normalize saved breakpoint values exactly as the frontend does.
+ *
+ * @param {*} breakpoint Candidate saved attribute value.
+ * @return {string} A valid CSS breakpoint or the default.
+ */
+export function sanitizeBreakpoint( breakpoint ) {
+	if ( typeof breakpoint !== 'string' || /[^\x00-\x7F]/.test( breakpoint ) ) {
+		return DEFAULT_BREAKPOINT;
+	}
+
+	const normalized = breakpoint
+		.replace( PHP_TRIM_CHARACTERS, '' )
+		.toLowerCase();
+	const match = BREAKPOINT_PATTERN.exec( normalized );
+	const number = match ? Number( match[ 1 ] ) : Number.NaN;
+
+	if (
+		normalized.length > 64 ||
+		! match ||
+		! Number.isFinite( number ) ||
+		number <= 0
+	) {
+		return DEFAULT_BREAKPOINT;
+	}
+
+	return normalized;
+}
+
+/**
+ * Scope the shipped stack stylesheet to one editor block.
+ *
+ * @param {string} template   Localized stack stylesheet.
+ * @param {string} breakpoint Validated breakpoint.
+ * @param {string} className  Trusted editor-only class.
+ * @return {string} Scoped stylesheet.
+ */
+export function buildStackCss( template, breakpoint, className ) {
+	if ( ! template || ! className ) {
+		return '';
+	}
+
+	return template
+		.replace( '(max-width: 768px)', `(max-width: ${ breakpoint })` )
+		.split( '.ag-stack-mobile' )
+		.join( `.${ className }.ag-stack-mobile` );
+}
+
+export function ResponsiveStackStyle( { clientId, css } ) {
+	useEffect( () => {
+		if ( ! clientId || ! css || typeof document === 'undefined' ) {
+			return undefined;
+		}
+
+		const blockId = `block-${ clientId }`;
+		const documents = [ document ];
+
+		document.querySelectorAll( 'iframe' ).forEach( ( iframe ) => {
+			try {
+				if ( iframe.contentDocument ) {
+					documents.push( iframe.contentDocument );
+				}
+			} catch ( error ) {
+				// Cross-origin frames cannot contain this editor block.
+			}
+		} );
+
+		const wrapper = documents
+			.map( ( ownerDocument ) => ownerDocument.getElementById( blockId ) )
+			.find( Boolean );
+
+		if ( ! wrapper || ! wrapper.ownerDocument.head ) {
+			return undefined;
+		}
+
+		const style = wrapper.ownerDocument.createElement( 'style' );
+		style.textContent = css;
+		wrapper.ownerDocument.head.appendChild( style );
+
+		return () => {
+			style.parentNode?.removeChild( style );
+		};
+	}, [ clientId, css ] );
+
+	return null;
+}
 
 /**
  * Add custom attributes to supported blocks
@@ -311,17 +405,47 @@ const withResponsiveClasses = createHigherOrderComponent(
 
 			const {
 				awesomeStackOnMobile,
+				awesomeMobileBreakpoint,
 				awesomeHideOnMobile,
 				awesomeHideOnDesktop,
+				awesomeStackDirection,
 				awesomeGridVerticalAlignment,
 				layout,
 			} = attributes;
 
+			const sanitizedClientId = String( props.clientId || '' ).replace(
+				/[^A-Za-z0-9_-]/g,
+				''
+			);
+			const editorClass = awesomeStackOnMobile
+				? `ag-editor-${ sanitizedClientId || 'block' }`
+				: '';
+			let stackCss = '';
+			if ( awesomeStackOnMobile ) {
+				stackCss = buildStackCss(
+					stackCssTemplate,
+					sanitizeBreakpoint( awesomeMobileBreakpoint ),
+					editorClass
+				);
+			}
 			let wrapperProps = props.wrapperProps || {};
+			if ( awesomeStackOnMobile ) {
+				wrapperProps = {
+					...wrapperProps,
+					style: {
+						...wrapperProps.style,
+						'--ag-stack-direction':
+							awesomeStackDirection === 'column-reverse'
+								? 'column-reverse'
+								: 'column',
+					},
+				};
+			}
 
 			const className = [
 				props.className,
 				awesomeStackOnMobile && 'ag-stack-mobile',
+				editorClass,
 				awesomeHideOnMobile && 'ag-hide-mobile',
 				awesomeHideOnDesktop && 'ag-hide-desktop',
 			]
@@ -353,11 +477,19 @@ const withResponsiveClasses = createHigherOrderComponent(
 			}
 
 			return (
-				<BlockListBlock
-					{ ...props }
-					className={ className }
-					wrapperProps={ wrapperProps }
-				/>
+				<Fragment>
+					<BlockListBlock
+						{ ...props }
+						className={ className }
+						wrapperProps={ wrapperProps }
+					/>
+					{ awesomeStackOnMobile && (
+						<ResponsiveStackStyle
+							clientId={ props.clientId }
+							css={ stackCss }
+						/>
+					) }
+				</Fragment>
 			);
 		};
 	},

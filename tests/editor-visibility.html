@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Awesome Group editor visibility regression</title>
+		<link rel="stylesheet" href="../build/style-index.css">
+		<style>
+			.fixture {
+				border: 1px solid #999;
+				margin: 1rem 0;
+				padding: 0.5rem;
+			}
+
+			.block-editor-block-list__block {
+				background: #f0f6fc;
+			}
+
+			.pass {
+				color: #087f23;
+			}
+
+			.fail {
+				color: #b32d2e;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>Awesome Group editor visibility regression</h1>
+		<p id="result">Running checks…</p>
+
+		<section aria-label="Frontend fixtures">
+			<h2>Frontend</h2>
+			<div class="fixture ag-hide-mobile" data-fixture="frontend-mobile">Mobile-only</div>
+			<div class="fixture ag-hide-desktop" data-fixture="frontend-desktop">Desktop-only</div>
+			<div class="fixture ag-hide-mobile ag-hide-desktop" data-fixture="frontend-both">Both-hidden</div>
+		</section>
+
+		<section aria-label="Editor fixtures">
+			<h2>Editor wrappers</h2>
+			<div class="fixture block-editor-block-list__block ag-hide-mobile" data-fixture="editor-mobile">Mobile-hidden block remains selectable</div>
+			<div class="fixture block-editor-block-list__block ag-hide-desktop" data-fixture="editor-desktop">Desktop-hidden block remains selectable</div>
+			<div class="fixture block-editor-block-list__block ag-hide-mobile ag-hide-desktop" data-fixture="editor-both">
+				Both-hidden editor block remains selectable
+				<div class="fixture block-editor-block-list__block ag-hide-mobile" data-fixture="editor-nested">Nested editor block remains selectable</div>
+			</div>
+		</section>
+
+		<script>
+			const isMobile = window.matchMedia( '(max-width: 768px)' ).matches;
+			const isDesktop = window.matchMedia( '(min-width: 769px)' ).matches;
+			const expected = {
+				'frontend-mobile': ! isMobile,
+				'frontend-desktop': ! isDesktop,
+				'frontend-both': ! isMobile && ! isDesktop,
+				'editor-mobile': true,
+				'editor-desktop': true,
+				'editor-both': true,
+				'editor-nested': true,
+			};
+			const failures = Object.entries( expected ).filter( ( [ fixture, visible ] ) => {
+				const element = document.querySelector( `[data-fixture="${ fixture }"]` );
+				return ( getComputedStyle( element ).display !== 'none' ) !== visible;
+			} );
+			const result = document.getElementById( 'result' );
+
+			result.textContent = failures.length
+				? `FAIL: ${ failures.join( ', ' ) }`
+				: `PASS at ${ window.innerWidth }px`;
+			result.className = failures.length ? 'fail' : 'pass';
+			console.assert( ! failures.length, result.textContent );
+		</script>
+	</body>
+</html>

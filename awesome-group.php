@@ -21,6 +21,56 @@ define( 'AWESOME_GROUP_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AWESOME_GROUP_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
 /**
+ * Read the shared stacking stylesheet once per request.
+ *
+ * @return string The shipped CSS template, or an empty string when unavailable.
+ */
+function awesome_group_get_stack_css_template() {
+	static $template = null;
+
+	if ( null === $template ) {
+		$path = AWESOME_GROUP_PLUGIN_DIR . 'src/stack.css';
+		$template = is_readable( $path ) ? file_get_contents( $path ) : '';
+		$template = false === $template ? '' : $template;
+	}
+
+	return $template;
+}
+
+/**
+ * Build one trusted, block-scoped copy of the stacking stylesheet.
+ *
+ * @param string $breakpoint Sanitized breakpoint.
+ * @param string $unique_id  Internally generated class name.
+ * @param string $direction  Allowlisted flex direction.
+ * @return string CSS ready for a style element, or an empty string.
+ */
+function awesome_group_build_stack_css( $breakpoint, $unique_id, $direction ) {
+	$template = awesome_group_get_stack_css_template();
+	$breakpoint = awesome_group_sanitize_breakpoint( $breakpoint );
+	$unique_id = preg_replace( '/[^A-Za-z0-9_-]/', '', $unique_id );
+	$direction = in_array( $direction, array( 'column', 'column-reverse' ), true ) ? $direction : 'column';
+
+	if ( '' === $template || '' === $unique_id ) {
+		return '';
+	}
+
+	$css = str_replace(
+		array( '(max-width: 768px)', '.ag-stack-mobile' ),
+		array( '(max-width: ' . $breakpoint . ')', '.' . $unique_id . '.ag-stack-mobile' ),
+		$template
+	);
+
+	return sprintf(
+		'@media screen and (max-width: %1$s) { .%2$s.ag-stack-mobile { --ag-stack-direction: %3$s; } }' . "\n" . '%4$s',
+		$breakpoint,
+		$unique_id,
+		$direction,
+		$css
+	);
+}
+
+/**
  * Get cached asset data to avoid multiple file_exists + include calls per request.
  *
  * @return array|false Asset data array or false if file doesn't exist.
@@ -53,6 +103,15 @@ function awesome_group_enqueue_editor_assets() {
 		$asset['version'],
 		true
 	);
+
+	$template = awesome_group_get_stack_css_template();
+	if ( '' !== $template ) {
+		wp_add_inline_script(
+			'awesome-group-editor',
+			'window.awesomeGroupStackCss = ' . wp_json_encode( $template, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT ) . ';',
+			'before'
+		);
+	}
 
 	wp_enqueue_style(
 		'awesome-group-editor',
@@ -141,14 +200,15 @@ function awesome_group_sanitize_breakpoint( $breakpoint ) {
 
 	// Block attribute JSON is not type-enforced server-side: a crafted block
 	// comment can supply an array/object here, which would fatal in preg_match.
-	if ( ! is_string( $breakpoint ) || '' === $breakpoint ) {
+	if ( ! is_string( $breakpoint ) || preg_match( '/[^\x00-\x7F]/', $breakpoint ) ) {
 		return $default;
 	}
 
-	$breakpoint = strtolower( trim( $breakpoint ) );
+	$breakpoint = strtolower( trim( $breakpoint, " \t\n\r\0\x0B" ) );
 
 	// Must be a number followed by px, em, or rem ('D' so '$' can't match before a trailing newline)
-	if ( preg_match( '/^\d+(\.\d+)?(px|em|rem)$/D', $breakpoint ) ) {
+	$number = (float) $breakpoint;
+	if ( strlen( $breakpoint ) <= 64 && preg_match( '/^\d+(\.\d+)?(px|em|rem)$/D', $breakpoint ) && is_finite( $number ) && $number > 0 ) {
 		return $breakpoint;
 	}
 
@@ -182,18 +242,10 @@ function awesome_group_render_block( $block_content, $block ) {
 			? ( $attrs['awesomeStackDirection'] ?? 'column' )
 			: 'column';
 
-		// Generate inline style for custom breakpoint.
-		// CSS-injection safety here depends entirely on the upstream
-		// validation ($breakpoint regex, $direction whitelist) — esc_attr()
-		// is defense-in-depth only and does NOT make arbitrary text safe for
-		// a <style> context. Any new value added to this sprintf must be
-		// equally strictly whitelisted first.
-		$styles[] = sprintf(
-			'<style>.%s { --ag-breakpoint: %s; --ag-stack-direction: %s; }</style>',
-			esc_attr( $unique_id ),
-			esc_attr( $breakpoint ),
-			esc_attr( $direction )
-		);
+		$stack_css = awesome_group_build_stack_css( $breakpoint, $unique_id, $direction );
+		if ( '' !== $stack_css ) {
+			$styles[] = '<style>' . $stack_css . '</style>';
+		}
 	}
 
 	// Hide on mobile
